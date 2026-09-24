@@ -4,7 +4,25 @@
 Авторы: команда (ФИО — см. README).
 """
 
+import warnings
 from pathlib import Path
+
+# Подавляем только те предупреждения, которые проверили и признали
+# безобидными для наших целей (P2-6 фидбека), а не всё подряд:
+# - statsmodels предупреждает, что adfuller/kpss/acorr_lm в будущей версии
+#   поменяют формат возврата (FutureWarning) — мы используем текущий формат
+#   намеренно (`adf_stat, adf_p, *_ = adfuller(...)`), совместимость на
+#   момент сдачи проверена.
+# - InterpolationWarning из kpss — p-значение вне таблицы (< 0.01 или > 0.1),
+#   мы читаем это как "решительно отвергаем/не отвергаем", таблица с точным
+#   p-значением здесь не нужна.
+warnings.filterwarnings("ignore", category=FutureWarning)
+try:
+    from statsmodels.tools.sm_exceptions import InterpolationWarning
+
+    warnings.filterwarnings("ignore", category=InterpolationWarning)
+except ImportError:
+    pass
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_RAW = ROOT / "data" / "raw"
@@ -15,7 +33,7 @@ OUTPUT_FIGURES = ROOT / "output" / "figures"
 for _dir in (DATA_RAW, DATA_PROCESSED, OUTPUT_TABLES, OUTPUT_FIGURES):
     _dir.mkdir(parents=True, exist_ok=True)
 
-# --- Период разведки (см. plan_keyrate.md, раздел 0) ---
+# --- Период разведки ---
 # Начало — момент, когда ключевая ставка стала основным инструментом ЦБ РФ.
 SAMPLE_START = "01.01.2013"
 # Конец — фиксируем на дату последней проверки данных, не "сегодня":
@@ -40,10 +58,10 @@ RAW_BRENT_FILE = DATA_RAW / "brent_raw.csv"
 MONTHLY_PANEL_FILE = DATA_PROCESSED / "monthly_panel.parquet"
 DAILY_RETURNS_FILE = DATA_PROCESSED / "daily_returns.parquet"
 
-# --- Структурный слом (см. plan_keyrate.md, п. 0.4) ---
-SHOCK_DATE = "2022-02-28"  # экстренное повышение ставки 9.5% -> 20%
+# --- Структурный слом: экстренное повышение ставки 9.5% -> 20% в ответ на санкционный шок ---
+SHOCK_DATE = "2022-02-28"
 
-# --- Хвост выборки: НЕ обрезаем в основной спецификации (см. plan_keyrate.md, п. 0.8 и раздел 7) ---
+# --- Хвост выборки: НЕ обрезаем в основной спецификации ---
 # Дата, после которой начинается волатильный, неустоявшийся эпизод нефти.
 # Используется только для параллельной проверки устойчивости, не для обрезки основной модели.
 VOLATILE_TAIL_START = "2026-07-01"

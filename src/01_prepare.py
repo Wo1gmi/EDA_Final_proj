@@ -5,8 +5,8 @@
 - daily_returns.parquet  — дневные лог-доходности курса с флагом дат
   решений по ставке — вход для GARCH и событийного исследования.
 
-Здесь же пересчитываются факты раздела 0 плана (`plan_keyrate.md`) и
-тест на коинтеграцию, определяющий спецификацию VAR (Э2 плана).
+Здесь же считаются базовые факты о рядах и тест на коинтеграцию,
+определяющий спецификацию VAR (VAR-в-разностях vs VECM).
 
 Авторы: команда (ФИО — см. README).
 """
@@ -69,11 +69,11 @@ def build_daily_returns(usd: pd.DataFrame, key: pd.DataFrame) -> pd.DataFrame:
     key_sorted = key.sort_values("date").reset_index(drop=True)
     changes = key_sorted[key_sorted["key_rate"].diff() != 0].iloc[1:]  # drop first row (no diff)
 
-    # ВАЖНО (см. plan_keyrate.md, п. 0.11): дата в выгрузке ставки — дата
-    # вступления решения в силу, а дата в выгрузке курса — дата действия
-    # официального фиксинга (T+1 от торговой сессии, отсюда 0 понедельников
-    # в usd_dates). Прямое сравнение дат совпадает только в 5 случаях из 65;
-    # сдвиг даты решения на +1 календарный день даёт 65 совпадений из 65.
+    # ВАЖНО: дата в выгрузке ставки — дата вступления решения в силу, а дата
+    # в выгрузке курса — дата действия официального фиксинга (T+1 от торговой
+    # сессии, отсюда 0 понедельников в usd_dates). Прямое сравнение дат
+    # совпадает только в 5 случаях из 65; сдвиг даты решения на +1
+    # календарный день даёт 65 совпадений из 65.
     shifted_dates = set(changes["date"] + pd.Timedelta(days=1))
     df["rate_decision_day"] = df["date"].isin(shifted_dates)
     n_flagged = df["rate_decision_day"].sum()
@@ -86,28 +86,64 @@ def build_daily_returns(usd: pd.DataFrame, key: pd.DataFrame) -> pd.DataFrame:
 
 
 def stationarity_tests(panel: pd.DataFrame) -> pd.DataFrame:
+    """ADF+KPSS по уровням и разностям, с константой ("c") и с константой+
+    трендом ("ct"). Добавлено после фидбека (P1-5): усредненный курс на
+    графике R1 явно растёт, регрессия только "c" для него не обоснована.
+    Уровни всё равно не используются напрямую в модели (VAR строится на
+    первых разностях, см. п. 0.5) — различие между "I(1)" и "трендостационарно"
+    для итоговой спецификации нейтрально, разность снимает оба случая, но
+    расхождение тестов надо явно проговорить, а не спрятать."""
     rows = []
     for col in ["key_rate", "usdrub", "brent"]:
         for transform, series in [
             ("level", panel[col]),
             ("diff", panel[col].diff().dropna()),
         ]:
-            adf_stat, adf_p, *_ = adfuller(series, autolag="AIC")
-            try:
-                kpss_stat, kpss_p, *_ = kpss(series, regression="c", nlags="auto")
-            except Exception:
-                kpss_stat, kpss_p = np.nan, np.nan
-            rows.append(
-                {
-                    "variable": col,
-                    "transform": transform,
-                    "adf_stat": adf_stat,
-                    "adf_p": adf_p,
-                    "kpss_stat": kpss_stat,
-                    "kpss_p": kpss_p,
-                }
-            )
+            for reg in ["c", "ct"]:
+                adf_stat, adf_p, *_ = adfuller(series, regression=reg, autolag="AIC")
+                try:
+                    kpss_stat, kpss_p, *_ = kpss(series, regression=reg, nlags="auto")
+                except Exception:
+                    kpss_stat, kpss_p = np.nan, np.nan
+                rows.append(
+                    {
+                        "variable": col,
+                        "transform": transform,
+                        "regression": reg,
+                        "adf_stat": adf_stat,
+                        "adf_p": adf_p,
+                        "kpss_stat": kpss_stat,
+                        "kpss_p": kpss_p,
+                    }
+                )
     return pd.DataFrame(rows)
+
+
+def stationarity_decisions(t2: pd.DataFrame) -> list[str]:
+    """Явное решение по каждому ряду в уровнях, а не молчаливый переход
+    к разностям (P1-5): что показали тесты и что мы из этого делаем."""
+    lines = []
+    for col in ["key_rate", "usdrub", "brent"]:
+        lvl = t2[(t2["variable"] == col) & (t2["transform"] == "level")]
+        c = lvl[lvl["regression"] == "c"].iloc[0]
+        ct = lvl[lvl["regression"] == "ct"].iloc[0]
+        agree_c = (c["adf_p"] >= 0.05) == (c["kpss_p"] < 0.05)
+        agree_ct = (ct["adf_p"] >= 0.05) == (ct["kpss_p"] < 0.05)
+        lines.append(
+            f"{col}: без тренда ADF p={c['adf_p']:.3f} / KPSS p={c['kpss_p']:.3f} "
+            f"({'согласны' if agree_c else 'РАСХОДЯТСЯ'}); "
+            f"с трендом ADF p={ct['adf_p']:.3f} / KPSS p={ct['kpss_p']:.3f} "
+            f"({'согласны' if agree_ct else 'РАСХОДЯТСЯ'})"
+        )
+    lines.append(
+        "Решение: usdrub без тренда — тесты расходятся (погранично); с трендом "
+        "оба указывают на трендовую стационарность, а не единичный корень. "
+        "На выбор спецификации VAR это не влияет: модель строится на первых "
+        "разностях всех трёх рядов (п. 0.5), а разность снимает и единичный "
+        "корень, и линейный тренд — расхождение важно для интерпретации "
+        "уровней, не для самой модели."
+    )
+    return lines
 
 
 def johansen_rank(data: np.ndarray, k_ar_diff: int) -> tuple[int, list[str]]:
@@ -147,7 +183,7 @@ def johansen_decision(panel: pd.DataFrame) -> str:
     principal_kd = max(p_bic - 1, 1)
 
     lines = [
-        f"Выбор лага VAR по BIC (обоснование в plan_keyrate.md, п. 0.5): p={p_bic}",
+        f"Выбор лага VAR по BIC (данные, не произвольный выбор): p={p_bic}",
         f"=> k_ar_diff для VECM/Йохансена = {principal_kd}",
         "",
         "Чувствительность ранга коинтеграции к k_ar_diff (обязательная проверка,",
@@ -209,8 +245,11 @@ def main() -> None:
 
     t2 = stationarity_tests(panel)
     t2.to_csv(cfg.OUTPUT_TABLES / "T2_stationarity.csv", index=False)
-    print("\n=== T2: тесты на стационарность ===")
+    print("\n=== T2: тесты на стационарность (c и ct) ===")
     print(t2.round(3).to_string(index=False))
+    print("\n=== Явное решение по каждому ряду (P1-5) ===")
+    for line in stationarity_decisions(t2):
+        print(line)
 
     johansen_decision(panel)
 

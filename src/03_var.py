@@ -1,7 +1,7 @@
-"""Слой 1 плана: VAR в разностях (основная спецификация) + VECM (альтернатива),
+"""VAR в разностях (основная спецификация) + VECM (альтернатива),
 тест Грейнджера в обе стороны (с контролем на нефть и без), импульсные отклики.
 
-Основная спецификация выбрана на Э2 (`01_prepare.py`, `var_spec_decision.txt`):
+Основная спецификация выбрана в `01_prepare.py` (`var_spec_decision.txt`):
 данные не показывают устойчивой коинтеграции (ранг зависит от лага), поэтому
 базовая модель — VAR(2) на первых разностях `key_rate, log(usdrub), log(brent)`.
 VECM(k_ar_diff=1, rank=1) считается параллельно, а не как запасной план.
@@ -77,7 +77,11 @@ def granger_row(results, cols: list, caused: str, causing: str, spec_label: str,
 def granger_row_vecm(vecm_results, caused: int, causing: int, caused_name: str, causing_name: str) -> dict:
     test = vecm_results.test_granger_causality(caused=caused, causing=causing)
     return {
-        "spec": "VECM (kd=1, rank=1)",
+        # kd=1 — тот самый лаг, который сам план признал произвольным (см. 0.5):
+        # ранг коинтеграции при нём на границе критического значения, а при
+        # data-driven лаге (kd=2) не подтверждается вовсе. Помечаем явно как
+        # отвергнутую по данным альтернативу, а не равноправную спецификацию.
+        "spec": "VECM (kd=1 — альтернатива, отвергнутая по данным, см. 01_prepare.py)",
         "control": "с нефтью (в системе)",
         "causing": causing_name,
         "caused": caused_name,
@@ -105,26 +109,99 @@ def build_t4(levels: pd.DataFrame, lag: int) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def plot_irf(results, cols: list, periods: int = 12) -> None:
-    irf = results.irf(periods)
+def _orth_irf_per_pp(sample: np.ndarray, lag: int, impulse_idx: int, response_idx: int, periods: int) -> np.ndarray:
+    """IRF ортогонализована по Холецкому, пересчитана на отклик к шоку 1 п.п.
+
+    orth_irfs по умолчанию даёт отклик на шок в 1 стандартное отклонение
+    структурной инновации. Для переменной, стоящей первой в порядке Холецкого
+    (у нас — key_rate), это отклонение равно sqrt(sigma_u[0,0]) и не смешано
+    с ковариацией остальных переменных, поэтому деление на него даёт именно
+    отклик на 1 процентный пункт ставки. Для impulse не первого в порядке
+    такое масштабирование было бы некорректно.
+    """
+    r = VAR(sample).fit(lag)
+    irf = r.irf(periods)
+    shock_sd = np.sqrt(r.sigma_u[impulse_idx, impulse_idx])
+    return irf.orth_irfs[:, response_idx, impulse_idx] / shock_sd
+
+
+def bootstrap_irf(
+    results, cols: list, periods: int = 12, n_boot: int = 500, seed: int = 20260101
+) -> pd.DataFrame:
+    """Остаточный (recursive-design) бутстрап доверительных интервалов IRF:
+    пересэмплируем остатки с возвращением, симулируем ряд по тем же
+    коэффициентам VAR, переоцениваем модель и IRF на каждой реплике —
+    вместо асимптотического интервала по умолчанию (см. фидбек P0-3.5:
+    при 156 наблюдениях и выбросах 2014-15/2022 он, скорее всего, узкий)."""
     impulse_idx = cols.index("key_rate")
     response_idx = cols.index("usdrub")
-    fig = irf.plot(
-        orth=True,
-        impulse=impulse_idx,
-        response=response_idx,
-        signif=0.05,
+    if impulse_idx != 0:
+        raise RuntimeError("Масштабирование IRF на 1 п.п. верно только для impulse, стоящего первым в порядке.")
+
+    intercept = results.intercept
+    coefs = results.coefs  # (lag, k, k)
+    resid = results.resid  # (T-lag, k)
+    lag = results.k_ar
+    k = results.neqs
+    d = results.endog  # исходные (дифференцированные) данные, включая первые lag наблюдений
+    T = d.shape[0]
+
+    point = _orth_irf_per_pp(d, lag, impulse_idx, response_idx, periods)
+
+    rng = np.random.default_rng(seed)
+    paths = np.full((n_boot, periods + 1), np.nan)
+    for b in range(n_boot):
+        e_star = resid[rng.integers(0, resid.shape[0], size=T - lag)]
+        y = np.zeros((T, k))
+        y[:lag] = d[:lag]
+        for t in range(lag, T):
+            yt = intercept.copy()
+            for l in range(lag):
+                yt = yt + coefs[l] @ y[t - 1 - l]
+            y[t] = yt + e_star[t - lag]
+        try:
+            paths[b] = _orth_irf_per_pp(y, lag, impulse_idx, response_idx, periods)
+        except Exception:
+            continue
+
+    lo = np.nanpercentile(paths, 2.5, axis=0)
+    hi = np.nanpercentile(paths, 97.5, axis=0)
+    n_ok = int(np.isfinite(paths[:, 0]).sum())
+    print(f"Бутстрап IRF: {n_ok}/{n_boot} реплик успешно (шок = 1 п.п., ставка первая в порядке Холецкого)")
+
+    return pd.DataFrame(
+        {
+            "horizon": np.arange(periods + 1),
+            "response_per_pp": point,
+            "ci_lo": lo,
+            "ci_hi": hi,
+            "cum_response_per_pp": np.cumsum(point),
+            "cum_ci_lo": np.cumsum(lo),
+            "cum_ci_hi": np.cumsum(hi),
+        }
     )
-    fig.set_size_inches(7.5, 5)
-    if fig._suptitle is not None:
-        fig.suptitle("")
-    ax = fig.axes[0]
-    ax.set_title(
-        "Отклик Δlog(курс USD/RUB) на шок ставки в 1 п.п.\nVAR(2) в разностях, 95% доверительный интервал",
-        fontsize=11,
+
+
+def plot_irf(irf_table: pd.DataFrame) -> None:
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7.5, 7), sharex=True)
+
+    ax1.plot(irf_table["horizon"], irf_table["response_per_pp"], color="steelblue", lw=2)
+    ax1.fill_between(irf_table["horizon"], irf_table["ci_lo"], irf_table["ci_hi"], color="steelblue", alpha=0.2)
+    ax1.axhline(0, color="black", lw=0.7)
+    ax1.set_ylabel("Отклик log-курса за месяц")
+    ax1.set_title(
+        "Отклик курса USD/RUB на шок ставки в 1 п.п.\n"
+        "VAR(2) в разностях, 95% бутстрап-CI (500 реплик, ставка первая в порядке Холецкого)",
+        fontsize=10,
     )
-    ax.set_xlabel("Месяцы после шока")
-    ax.set_ylabel("Отклик log-курса")
+
+    ax2.plot(irf_table["horizon"], irf_table["cum_response_per_pp"], color="darkorange", lw=2)
+    ax2.fill_between(irf_table["horizon"], irf_table["cum_ci_lo"], irf_table["cum_ci_hi"], color="darkorange", alpha=0.2)
+    ax2.axhline(0, color="black", lw=0.7)
+    ax2.set_ylabel("Накопленный отклик log-курса")
+    ax2.set_xlabel("Месяцы после шока")
+    ax2.set_title("Накопленный эффект (сумма отклика по горизонтам)", fontsize=11)
+
     fig.tight_layout()
     fig.savefig(cfg.OUTPUT_FIGURES / "R2_irf_rate_to_fx.png", dpi=150)
     plt.close(fig)
@@ -155,7 +232,11 @@ def main() -> None:
     print("\n=== T4: тест Грейнджера ===")
     print(t4.round(4).to_string(index=False))
 
-    plot_irf(res_full, cols_full)
+    irf_table = bootstrap_irf(res_full, cols_full, periods=12, n_boot=500)
+    irf_table.to_csv(cfg.OUTPUT_TABLES / "T3c_irf_bootstrap.csv", index=False)
+    plot_irf(irf_table)
+    print("\n=== T3c: IRF (шок 1 п.п.), бутстрап-CI ===")
+    print(irf_table.round(4).to_string(index=False))
     print(f"\nСохранено: {cfg.OUTPUT_FIGURES / 'R2_irf_rate_to_fx.png'}")
 
 
