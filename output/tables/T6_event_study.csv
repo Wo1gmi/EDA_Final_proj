@@ -1,2 +1,2 @@
-test,n_events,observed_abs_return_pct,placebo_abs_return_mean,p_value_abs_return,observed_cond_vol,placebo_cond_vol_mean,p_value_cond_vol
-"наивный (плацебо по всей выборке, без учёта кризисных кластеров)",65,0.9205592916835118,0.6798625428364106,0.0,1.1557105467559465,0.9558777284740136,0.006
+test,n_events,observed_abs_return_pct,placebo_abs_return_mean,p_value_abs_return,n_exceed_abs_return,observed_cond_vol,placebo_cond_vol_mean,p_value_cond_vol,n_exceed_cond_vol,n_permutations,seed
+"описательное сравнение с глобальным плацебо, равный вес событий",65,0.9623617702076591,0.68676812761237,0.000999000999000999,0,1.195345962350281,0.958288698376325,0.002997002997002997,2,1000,20260101

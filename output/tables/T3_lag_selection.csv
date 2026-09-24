@@ -1,5 +1,9 @@
-criterion,selected_lag
-aic,3
-bic,3
-hqic,3
-fpe,3
+scale,criterion,selected_lag,baseline_fixed_lag
+levels,aic,3,2
+levels,bic,3,2
+levels,hqic,3,2
+levels,fpe,3,2
+differences,aic,2,2
+differences,bic,2,2
+differences,hqic,2,2
+differences,fpe,2,2

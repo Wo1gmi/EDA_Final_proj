@@ -1,0 +1,890 @@
+{
+  "authors": [
+    "Анастасия Казакова",
+    "Степан Селезнев",
+    "Светлана Калошкина"
+  ],
+  "text": [
+    {
+      "slide": 1,
+      "name": "Text 0",
+      "text": "Ставка ЦБ, курс рубля\nи его волатильность",
+      "style": {
+        "typeface": "Cambria",
+        "fontSize": 53.33,
+        "color": "#FFFFFF",
+        "bold": true,
+        "italic": false
+      }
+    },
+    {
+      "slide": 1,
+      "name": "Text 1",
+      "text": "Финальный проект по анализу экономических данных\n2026",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 22,
+        "color": "#AEB9CC",
+        "bold": false,
+        "italic": false
+      },
+      "position": {
+        "left": 76.8,
+        "top": 400,
+        "width": 1008,
+        "height": 74
+      }
+    },
+    {
+      "slide": 1,
+      "name": "Text 2",
+      "text": "Анастасия Казакова\nСтепан Селезнев\nСветлана Калошкина",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 20,
+        "color": "#CADCFC",
+        "bold": false,
+        "italic": false
+      },
+      "position": {
+        "left": 76.8,
+        "top": 534,
+        "width": 1100,
+        "height": 92
+      }
+    },
+    {
+      "slide": 1,
+      "name": "Text 3",
+      "text": "Данные Банка России и FRED",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 17,
+        "color": "#AEB9CC",
+        "bold": false,
+        "italic": false
+      },
+      "position": {
+        "left": 76.8,
+        "top": 654,
+        "width": 1100,
+        "height": 30
+      }
+    },
+    {
+      "slide": 2,
+      "name": "Text 0",
+      "text": "Исследовательский вопрос",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 36,
+        "color": "#1C2733",
+        "bold": true,
+        "italic": false
+      }
+    },
+    {
+      "slide": 2,
+      "name": "Text 1",
+      "text": "Помогают ли прошлые изменения ключевой ставки\nпрогнозировать изменения курса рубля?",
+      "style": {
+        "typeface": "Cambria",
+        "fontSize": 29.33,
+        "color": "#13294B",
+        "bold": false,
+        "italic": true
+      }
+    },
+    {
+      "slide": 2,
+      "name": "Text 2",
+      "text": [
+        "Как меняется волатильность курса вокруг дат вступления новой ставки в силу?",
+        "Курс определяет стоимость валюты для импортёров и владельцев валютных сбережений.",
+        "Исследуем прогнозную связь при учёте цены нефти Brent. Причинная трактовка требует отдельного дизайна."
+      ],
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 20,
+        "color": "#1C2733",
+        "bold": false,
+        "italic": false
+      },
+      "position": {
+        "left": 57.6,
+        "top": 315,
+        "width": 729.6,
+        "height": 312
+      }
+    },
+    {
+      "slide": 2,
+      "name": "Text 3",
+      "text": "4,25-21%",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 40,
+        "color": "#13294B",
+        "bold": true,
+        "italic": false
+      }
+    },
+    {
+      "slide": 2,
+      "name": "Text 4",
+      "text": "диапазон ключевой ставки в исходных данных",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 16,
+        "color": "#6B7688",
+        "bold": false,
+        "italic": false
+      }
+    },
+    {
+      "slide": 2,
+      "name": "Text 5",
+      "text": "65",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 40,
+        "color": "#13294B",
+        "bold": true,
+        "italic": false
+      }
+    },
+    {
+      "slide": 2,
+      "name": "Text 6",
+      "text": "изменений уровня ставки",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 16,
+        "color": "#6B7688",
+        "bold": false,
+        "italic": false
+      }
+    },
+    {
+      "slide": 3,
+      "name": "Text 0",
+      "text": "Данные и календарь наблюдений",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 36,
+        "color": "#1C2733",
+        "bold": true,
+        "italic": false
+      }
+    },
+    {
+      "slide": 3,
+      "name": "Text 3",
+      "text": "Банк России, ключевая ставка",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 15,
+        "color": "#6B7688",
+        "bold": false,
+        "italic": false
+      }
+    },
+    {
+      "slide": 3,
+      "name": "Text 8",
+      "text": "Банк России, официальный курс",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 15,
+        "color": "#6B7688",
+        "bold": false,
+        "italic": false
+      }
+    },
+    {
+      "slide": 3,
+      "name": "Text 13",
+      "text": "FRED, DCOILBRENTEU",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 15,
+        "color": "#6B7688",
+        "bold": false,
+        "italic": false
+      }
+    },
+    {
+      "slide": 3,
+      "name": "Text 5",
+      "text": "17.09.2013-23.09.2026",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 15,
+        "color": "#6B7688",
+        "bold": false,
+        "italic": false
+      }
+    },
+    {
+      "slide": 3,
+      "name": "Text 10",
+      "text": "10.01.2013-23.09.2026",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 15,
+        "color": "#6B7688",
+        "bold": false,
+        "italic": false
+      }
+    },
+    {
+      "slide": 3,
+      "name": "Text 15",
+      "text": "02.01.2013-22.09.2026",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 15,
+        "color": "#6B7688",
+        "bold": false,
+        "italic": false
+      }
+    },
+    {
+      "slide": 3,
+      "name": "Text 16",
+      "text": "Месячная модель: 155 полных месяцев с 10.2013 по 08.2026. После разностей и двух лагов остаётся 152 наблюдения.",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 20,
+        "color": "#1C2733",
+        "bold": false,
+        "italic": false
+      },
+      "position": {
+        "left": 57.6,
+        "top": 395,
+        "width": 1152,
+        "height": 72
+      }
+    },
+    {
+      "slide": 3,
+      "name": "Text 17",
+      "text": "События: 65 дат изменения действующей ставки. Опорная дата курса: следующий календарный день. Это приближение по официальным датам действия.",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 20,
+        "color": "#1C2733",
+        "bold": false,
+        "italic": false
+      },
+      "position": {
+        "left": 57.6,
+        "top": 485,
+        "width": 1152,
+        "height": 86
+      }
+    },
+    {
+      "slide": 3,
+      "name": "Text 18",
+      "text": "В месячной модели ставка берётся на конец месяца, курс и Brent усредняются. С июня 2024 года меняется методика официального курса.",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 18,
+        "color": "#6B7688",
+        "bold": false,
+        "italic": false
+      },
+      "position": {
+        "left": 57.6,
+        "top": 594,
+        "width": 1152,
+        "height": 67
+      }
+    },
+    {
+      "slide": 4,
+      "name": "Text 0",
+      "text": "Методы и проверка устойчивости",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 36,
+        "color": "#1C2733",
+        "bold": true,
+        "italic": false
+      }
+    },
+    {
+      "slide": 4,
+      "name": "Text 4",
+      "text": [
+        "Основная VAR(2) в изменениях ставки и логарифмов курса и Brent.",
+        "BIC на разностях поддерживает два лага. Проверяем также один и три лага.",
+        "Тест Грейнджера, отклики и чувствительность к кризисным эпизодам."
+      ],
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 19,
+        "color": "#1C2733",
+        "bold": false,
+        "italic": false
+      }
+    },
+    {
+      "slide": 4,
+      "name": "Text 8",
+      "text": [
+        "GJR-GARCH с AR(1) и t-распределением для волатильности.",
+        "Сравнение четырёх спецификаций по BIC и диагностика остатков.",
+        "Событийные окна с плацебо внутри каждого года."
+      ],
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 19,
+        "color": "#1C2733",
+        "bold": false,
+        "italic": false
+      }
+    },
+    {
+      "slide": 4,
+      "name": "Text 9",
+      "text": "Коинтеграция чувствительна к лагу. VAR в разностях используем как рабочую модель. p-значения и интервалы трактуем с учётом диагностики.",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 18,
+        "color": "#6B7688",
+        "bold": false,
+        "italic": false
+      }
+    },
+    {
+      "slide": 5,
+      "name": "Text 0",
+      "text": "Ставка, официальный курс и нефть во времени",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 36,
+        "color": "#1C2733",
+        "bold": true,
+        "italic": false
+      }
+    },
+    {
+      "slide": 6,
+      "name": "Text 1",
+      "text": "УСТОЙЧИВОСТЬ РЕЗУЛЬТАТА",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 17,
+        "color": "#13294B",
+        "bold": true,
+        "italic": false
+      }
+    },
+    {
+      "slide": 6,
+      "name": "Text 2",
+      "text": "Связь чувствительна к кризисным эпизодам",
+      "style": {
+        "typeface": "Cambria",
+        "fontSize": 34,
+        "color": "#FFFFFF",
+        "bold": true,
+        "italic": false
+      }
+    },
+    {
+      "slide": 6,
+      "name": "Text 3",
+      "text": "Индикаторы выделяют кризисные месяцы и следующие два месяца, на которые распространяются лаги. Рост p-значения показывает чувствительность теста.",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 18,
+        "color": "#CADCFC",
+        "bold": false,
+        "italic": false
+      }
+    },
+    {
+      "slide": 6,
+      "name": "Text 4",
+      "text": "В 96 скользящих окнах доля p<0,05 меняется с 60,4% до 2,1% при контроле кризисных наблюдений и лагов. Кризисная неоднородность ограничивает модельные тесты.",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 18,
+        "color": "#CADCFC",
+        "bold": false,
+        "italic": false
+      }
+    },
+    {
+      "slide": 7,
+      "name": "Text 0",
+      "text": "Отклик курса на модельный импульс ставки",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 36,
+        "color": "#1C2733",
+        "bold": true,
+        "italic": false
+      }
+    },
+    {
+      "slide": 7,
+      "name": "Text 1",
+      "text": [
+        "Импульс ставки: 1 процентный пункт.",
+        "Пик отклика месячного изменения курса: около 2,3 п.п. на 1-м месяце.",
+        "С 3-го месяца точечный 95% интервал накопленного отклика включает ноль.",
+        "500 реплик бутстрапа. Отклик условен относительно модели и порядка переменных."
+      ],
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 19,
+        "color": "#1C2733",
+        "bold": false,
+        "italic": false
+      },
+      "position": {
+        "left": 57.6,
+        "top": 167,
+        "width": 480,
+        "height": 455
+      }
+    },
+    {
+      "slide": 8,
+      "name": "Text 0",
+      "text": "Модель волатильности и её ограничения",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 36,
+        "color": "#1C2733",
+        "bold": true,
+        "italic": false
+      }
+    },
+    {
+      "slide": 8,
+      "name": "Text 1",
+      "text": "Общая выборка: 3213 наблюдений. Ljung-Box, 12 лагов: p=0,21 для остатков и 0,49 для их квадратов.\n\nВ периоде с 28.02.2022 квадраты остатков сохраняют зависимость: p=6,1 × 10⁻⁸.",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 18,
+        "color": "#6B7688",
+        "bold": false,
+        "italic": false
+      },
+      "position": {
+        "left": 57.6,
+        "top": 375,
+        "width": 576,
+        "height": 185
+      }
+    },
+    {
+      "slide": 8,
+      "name": "Text 2",
+      "text": "0,987 и 1,000",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 36,
+        "color": "#13294B",
+        "bold": true,
+        "italic": false
+      }
+    },
+    {
+      "slide": 8,
+      "name": "Text 3",
+      "text": "персистентность до и после 28.02.2022",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 17,
+        "color": "#6B7688",
+        "bold": false,
+        "italic": false
+      }
+    },
+    {
+      "slide": 8,
+      "name": "Text 4",
+      "text": "1,09 и н/д",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 34,
+        "color": "#5B7FA6",
+        "bold": true,
+        "italic": false
+      }
+    },
+    {
+      "slide": 8,
+      "name": "Text 5",
+      "text": "безусловная дисперсия до и после, %²",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 17,
+        "color": "#6B7688",
+        "bold": false,
+        "italic": false
+      }
+    },
+    {
+      "slide": 8,
+      "name": "Text 6",
+      "text": "В периоде с 28.02.2022 оценка персистентности достигает границы стационарности. Безусловная дисперсия в этой спецификации не определена.",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 18,
+        "color": "#6B7688",
+        "bold": false,
+        "italic": false
+      }
+    },
+    {
+      "slide": 9,
+      "name": "Text 0",
+      "text": "Волатильность вокруг событий и точность прогноза",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 36,
+        "color": "#1C2733",
+        "bold": true,
+        "italic": false
+      }
+    },
+    {
+      "slide": 9,
+      "name": "Text 2",
+      "text": "Даты изменения действующей ставки",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 20,
+        "color": "#13294B",
+        "bold": true,
+        "italic": false
+      },
+      "position": {
+        "left": 76.8,
+        "top": 164,
+        "width": 518.4,
+        "height": 62
+      }
+    },
+    {
+      "slide": 9,
+      "name": "Text 3",
+      "text": [
+        "65 событий: превышение обычного модуля изменения курса на 0,125 п.п. Monte Carlo p=0,004.",
+        "Без 2014, 2015 и 2022: 46 событий, превышение около 0,0001 п.п. p=0,416.",
+        "Окно 11 наблюдений, база 30. Плацебо внутри года, 1000 повторов."
+      ],
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 18.5,
+        "color": "#1C2733",
+        "bold": false,
+        "italic": false
+      },
+      "position": {
+        "left": 76.8,
+        "top": 235,
+        "width": 518.4,
+        "height": 345
+      }
+    },
+    {
+      "slide": 9,
+      "name": "Text 5",
+      "text": "Прогноз на следующий месяц",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 20,
+        "color": "#C9A227",
+        "bold": true,
+        "italic": false
+      },
+      "position": {
+        "left": 686.4,
+        "top": 164,
+        "width": 508.8,
+        "height": 62
+      }
+    },
+    {
+      "slide": 9,
+      "name": "Text 6",
+      "text": [
+        "118 прогнозов. RMSE VAR: 0,0541, нулевого: 0,0548. MAE: 0,0344 и 0,0327 соответственно.",
+        "У VAR ниже RMSE в 2022 (n=12) и выше в остальные годы (n=106).",
+        "Clark-West, приближённо: p=0,043 против нулевого прогноза и 0,126 при добавлении ставки к VAR курса и Brent."
+      ],
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 18.5,
+        "color": "#FFFFFF",
+        "bold": false,
+        "italic": false
+      },
+      "position": {
+        "left": 686.4,
+        "top": 235,
+        "width": 508.8,
+        "height": 345
+      }
+    },
+    {
+      "slide": 10,
+      "name": "Text 0",
+      "text": "Ответ на вопрос и ограничения",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 36,
+        "color": "#1C2733",
+        "bold": true,
+        "italic": false
+      }
+    },
+    {
+      "slide": 10,
+      "name": "Text 3",
+      "text": [
+        "Прогнозная связь ставки и курса чувствительна к кризисным эпизодам и спецификации.",
+        "VAR со ставкой немного снижает RMSE полной выборки. По MAE нулевой прогноз точнее.",
+        "Добавочная польза ставки по сравнению с VAR курса и Brent остаётся неопределённой.",
+        "Событийный результат зависит от включения кризисных лет."
+      ],
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 18.5,
+        "color": "#1C2733",
+        "bold": false,
+        "italic": false
+      },
+      "position": {
+        "left": 86.4,
+        "top": 238,
+        "width": 489.6,
+        "height": 345
+      }
+    },
+    {
+      "slide": 10,
+      "name": "Text 6",
+      "text": [
+        "Ставка реагирует на экономику. Инфляция и ожидания остаются за пределами модели.",
+        "Малые кризисные выборки и многочисленные проверки ограничивают уверенность выводов.",
+        "Кризисная неоднородность ограничивает модельные интервалы и тесты.",
+        "Используем даты действия ставки и официальный курс со сменой методики в 2024 году."
+      ],
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 18,
+        "color": "#FFFFFF",
+        "bold": false,
+        "italic": false
+      },
+      "position": {
+        "left": 667.2,
+        "top": 238,
+        "width": 508.8,
+        "height": 345
+      }
+    },
+    {
+      "slide": 11,
+      "name": "Text 0",
+      "text": "Спасибо за внимание",
+      "style": {
+        "typeface": "Cambria",
+        "fontSize": 48,
+        "color": "#FFFFFF",
+        "bold": true,
+        "italic": false
+      }
+    },
+    {
+      "slide": 11,
+      "name": "Text 1",
+      "text": "Анастасия Казакова, Степан Селезнев, Светлана Калошкина",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 21,
+        "color": "#CADCFC",
+        "bold": false,
+        "italic": false
+      },
+      "position": {
+        "left": 76.8,
+        "top": 338,
+        "width": 1120,
+        "height": 66
+      }
+    },
+    {
+      "slide": 11,
+      "name": "Text 2",
+      "text": "Код, данные и инструкция: README.md.\nПолный расчёт: менее минуты в тестовом окружении.\nТестовый Mac: 11 логических ядер, лимит численных потоков 8.",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 21,
+        "color": "#AEB9CC",
+        "bold": false,
+        "italic": false
+      },
+      "position": {
+        "left": 76.8,
+        "top": 429,
+        "width": 1120,
+        "height": 118
+      }
+    },
+    {
+      "slide": 3,
+      "name": "Text 4",
+      "text": "3264",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 34.66,
+        "color": "#5B7FA6",
+        "bold": true,
+        "italic": false
+      }
+    },
+    {
+      "slide": 3,
+      "name": "Text 9",
+      "text": "3385",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 34.66,
+        "color": "#5B7FA6",
+        "bold": true,
+        "italic": false
+      }
+    },
+    {
+      "slide": 3,
+      "name": "Text 14",
+      "text": "3481",
+      "style": {
+        "typeface": "Calibri",
+        "fontSize": 34.66,
+        "color": "#5B7FA6",
+        "bold": true,
+        "italic": false
+      }
+    }
+  ],
+  "tables": [
+    {
+      "slide": 6,
+      "name": "Table 0",
+      "fontSize": 16,
+      "values": [
+        [
+          "Индикаторы кризисных месяцев",
+          "p теста ставки"
+        ],
+        [
+          "Без индикаторов",
+          "4,3 × 10⁻²⁰"
+        ],
+        [
+          "Фев-апр 2022 + 2 месяца",
+          "0,174"
+        ],
+        [
+          "Ноя 2014-фев 2015 + 2 месяца",
+          "3,3 × 10⁻²²"
+        ],
+        [
+          "Оба эпизода + 2 месяца",
+          "0,778"
+        ]
+      ]
+    },
+    {
+      "slide": 8,
+      "name": "Table 0",
+      "fontSize": 16,
+      "values": [
+        [
+          "Спецификация",
+          "AIC",
+          "BIC"
+        ],
+        [
+          "t, AR(1), GJR",
+          "7973",
+          "8016"
+        ],
+        [
+          "t, AR(1)",
+          "7998",
+          "8034"
+        ],
+        [
+          "t, постоянное среднее",
+          "8031",
+          "8061"
+        ],
+        [
+          "Normal, постоянное среднее",
+          "8307",
+          "8331"
+        ]
+      ]
+    }
+  ],
+  "images": [
+    {
+      "slide": 5,
+      "name": "Image 0",
+      "file": "output/figures/R1_three_series.png",
+      "alt": "Динамика ключевой ставки, курса USD/RUB и Brent"
+    },
+    {
+      "slide": 6,
+      "name": "Image 0",
+      "file": "output/figures/R4_rolling_granger.png",
+      "alt": "Проверка Грейнджера в скользящих окнах"
+    },
+    {
+      "slide": 7,
+      "name": "Image 0",
+      "file": "output/figures/R2_irf_rate_to_fx.png",
+      "alt": "Импульсный отклик курса и накопленный отклик",
+      "position": {
+        "left": 575,
+        "top": 135,
+        "width": 630,
+        "height": 530
+      }
+    }
+  ],
+  "notes": [
+    "Авторы: Анастасия Казакова, Степан Селезнев, Светлана Калошкина. Исследуем прогнозную связь ставки, курса и волатильности на российских данных.",
+    "Основной вопрос относится к предсказанию. Дополнительный вопрос касается модуля изменения официального курса вокруг дат изменения действующей ставки.",
+    "Источники: https://www.cbr.ru/hd_base/KeyRate/ , https://www.cbr.ru/scripts/XML_dynamic.asp , https://fred.stlouisfed.org/series/DCOILBRENTEU . Таблица T1_sample.csv. Даты действия ставки отличаются от дат объявления решений. Даты официального курса также имеют собственную конвенцию. Общее число полных месяцев: 155, в основной VAR после разностей и лагов 152. Месячное усреднение курса и нефти исключает их механическое приравнивание к значениям на конец месяца.",
+    "Спецификация и диагностика: T2_stationarity.csv, T3_lag_selection.csv, T3_diagnostics.txt, T4_granger.csv, T5b_garch_spec_selection.csv. При интерпретации учитываем исследовательский выбор нескольких спецификаций.",
+    "Источник графика: output/figures/R1_three_series.png. Исходные данные Банка России и FRED. Официальный курс отражает действующую на дату котировку.",
+    "Источники: T7_robustness.csv, T7c_rolling_granger.csv и R4_rolling_granger.png. Выделение кризисных периодов является проверкой чувствительности. Индикаторы имеют смысл при конкретном построении регрессии. В основной модели p для прошлого курса в уравнении ставки равно 0,005. После контроля обоих эпизодов и следующих двух месяцев p для обратного направления равно 0,080. Высокие p-значения совместимы с недостаточной точностью.",
+    "Источники: T3c_irf_bootstrap.csv, T7b_irf_ordering.csv, R2_irf_rate_to_fx.png. Интервалы условны относительно модели и выбранной процедуры бутстрапа. Импульс задаётся в процентных пунктах ставки. Использован остаточный iid-бутстрап с фиксированной исходной нормировкой. Интервалы точечные. iid-бутстрап предполагает одинаковое распределение остатков. Возможная изменчивость дисперсии и выбросы ограничивают это допущение.",
+    "Источники: T5_garch.csv, T5b_garch_spec_selection.csv. Высокая персистентность и плохая диагностика на отдельном периоде ограничивают применение выбранной модели в этом периоде.",
+    "Источники: T6b_event_study_stratified.csv, T6c_before_after.csv, T8_outofsample_summary.csv, T8_outofsample_forecasts.csv. Событийный анализ описывает ассоциации вокруг вступления ставки в силу. Числа относятся к официальному курсу. RMSE в 2022: нулевой 0,1384, VAR со ставкой 0,1274. Остальные годы: 0,0342 и 0,0377. Ошибки прогнозов измерены в логарифмическом изменении курса. Все приведённые ошибки относятся к горизонту один месяц. Тест Clark-West использует всю непрерывную последовательность из 118 прогнозов и HAC с 4 лагами. p-значения односторонние, приближённые. База сравнения имеет значение: нулевой прогноз p=0,043, VAR без ставки p=0,126. Режимные RMSE описательные.",
+    "Итог относится к использованным данным, датам, периодам и моделям. Статистически слабый результат сохраняет содержательный смысл при корректной интерпретации.",
+    "Авторы: Анастасия Казакова, Степан Селезнев, Светлана Калошкина. Репозиторий: https://github.com/Wo1gmi/EDA_Final_proj . Замер включает весь расчёт на локально сохранённых исходных данных. Конфигурация ровно 8 CPU и 16 ГБ отдельно не испытывалась. Подробности доступны в output/run_manifest.json."
+  ],
+  "inputs_sha256": {
+    "output/tables/slide_values.json": "53a07b4365f54f466d88de2cd98261d1253a939c13de1e154f83bd4fae1dd4d1",
+    "output/tables/T1_sample.csv": "14c9bfc9635e9989253656898a971e1876e4e4ae82c84adfeb485040c9ffbdfd",
+    "output/run_manifest.json": "93a871905244353677768c08750a3f7273ab73f1048dab2f8a746934a220c226",
+    "output/figures/R1_three_series.png": "3f5e7ed4359b8a30e95a5972dff9b3643c2835096ef33f23865d2e0e1e543b9d",
+    "output/figures/R4_rolling_granger.png": "cab0f1ed58d2a1ae81e86343d949e32e31cf6a4bf03da900df53d8f263600025",
+    "output/figures/R2_irf_rate_to_fx.png": "28d8d98d56f4d38efa8847a30b7160d4d07f9db81c0015da58ef7ef33bfbc85e"
+  }
+}

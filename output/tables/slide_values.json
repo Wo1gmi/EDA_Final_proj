@@ -1,0 +1,831 @@
+{
+  "source_audit": {
+    "authors": [
+      "Анастасия Казакова",
+      "Степан Селезнев",
+      "Светлана Калошкина"
+    ],
+    "source_start": "01.01.2013",
+    "source_cutoff": "23.09.2026",
+    "monthly_start": "2013-10-31",
+    "monthly_end": "2026-08-31",
+    "monthly_n": 155,
+    "daily_start": "2013-09-17",
+    "daily_end": "2026-09-23",
+    "daily_n": 3214,
+    "rate_change_proxy_n": 65,
+    "partial_months_excluded": [
+      "2013-09",
+      "2026-09"
+    ],
+    "monthly_rule": "ставка последняя в месяце; USD/RUB и Brent среднее доступных наблюдений",
+    "daily_rule": "логарифмическая разность последовательных опубликованных значений официального курса",
+    "event_date_rule": "дата вступления изменения ставки в силу плюс 1 календарный день",
+    "event_announcement_dates_verified": false,
+    "fx_measurement_break": "2024-06-13",
+    "sources": [
+      {
+        "series": "key_rate",
+        "raw_rows": 3264,
+        "sha256": "e1e56132781b1477437a7857e56f772e56b77b056e78f92be71b8e4a72f1076f",
+        "raw_min_date": "2013-09-17",
+        "raw_max_date": "2026-09-23",
+        "duplicate_dates": 0,
+        "conflicting_duplicate_dates": 0,
+        "missing_numeric_rows": 0,
+        "rows_outside_source_window": 0,
+        "units": "проценты годовых"
+      },
+      {
+        "series": "usdrub",
+        "raw_rows": 3385,
+        "sha256": "0edc56f497a383258ecc14691028e6612d81ff9c35a83784c6749429541d0f40",
+        "raw_min_date": "2013-01-10",
+        "raw_max_date": "2026-09-23",
+        "duplicate_dates": 0,
+        "conflicting_duplicate_dates": 0,
+        "missing_numeric_rows": 0,
+        "rows_outside_source_window": 0,
+        "units": "рублей за 1 доллар США после деления на nominal"
+      },
+      {
+        "series": "brent",
+        "raw_rows": 10265,
+        "sha256": "fc3ab55170885e666085c1bdcb9ecf864826055d6370b305c6f8cb1b3e34edd0",
+        "raw_min_date": "1987-05-20",
+        "raw_max_date": "2026-09-22",
+        "duplicate_dates": 0,
+        "conflicting_duplicate_dates": 0,
+        "missing_numeric_rows": 1173,
+        "rows_outside_source_window": 6684,
+        "units": "долларов США за баррель"
+      }
+    ]
+  },
+  "baseline_var_lag": 2,
+  "authors": [
+    "Анастасия Казакова",
+    "Степан Селезнев",
+    "Светлана Калошкина"
+  ],
+  "granger": [
+    {
+      "spec": "VAR-в-разностях (осн.)",
+      "spec_note": "основная спецификация",
+      "control": "с нефтью в системе",
+      "causing": "key_rate",
+      "caused": "usdrub",
+      "f_stat": 49.5044779634,
+      "p_value": 4.261924843e-20,
+      "conclusion": "отвергаем H0 (есть предсказуемость)"
+    },
+    {
+      "spec": "VAR-в-разностях (осн.)",
+      "spec_note": "основная спецификация",
+      "control": "с нефтью в системе",
+      "causing": "usdrub",
+      "caused": "key_rate",
+      "f_stat": 5.4192574733,
+      "p_value": 0.0047346621,
+      "conclusion": "отвергаем H0 (есть предсказуемость)"
+    },
+    {
+      "spec": "VAR-в-разностях (осн.)",
+      "spec_note": "основная спецификация",
+      "control": "без нефти",
+      "causing": "key_rate",
+      "caused": "usdrub",
+      "f_stat": 49.9872261687,
+      "p_value": 2.057087094e-19,
+      "conclusion": "отвергаем H0 (есть предсказуемость)"
+    },
+    {
+      "spec": "VAR-в-разностях (осн.)",
+      "spec_note": "основная спецификация",
+      "control": "без нефти",
+      "causing": "usdrub",
+      "caused": "key_rate",
+      "f_stat": 5.2371788606,
+      "p_value": 0.0058223899,
+      "conclusion": "отвергаем H0 (есть предсказуемость)"
+    },
+    {
+      "spec": "VECM (kd=1)",
+      "spec_note": "условная чувствительность при rank=1 и k_ar_diff=1; см. диагностику Йохансена",
+      "control": "с нефтью (в системе)",
+      "causing": "key_rate",
+      "caused": "usdrub",
+      "f_stat": 51.5906660811,
+      "p_value": 8.639385628e-21,
+      "conclusion": "отвергаем H0 (есть предсказуемость)"
+    },
+    {
+      "spec": "VECM (kd=1)",
+      "spec_note": "условная чувствительность при rank=1 и k_ar_diff=1; см. диагностику Йохансена",
+      "control": "с нефтью (в системе)",
+      "causing": "usdrub",
+      "caused": "key_rate",
+      "f_stat": 4.9640094303,
+      "p_value": 0.0073942761,
+      "conclusion": "отвергаем H0 (есть предсказуемость)"
+    }
+  ],
+  "irf": [
+    {
+      "horizon": 0,
+      "response_per_pp": 0.0080821187,
+      "ci_lo": 0.0029393819,
+      "ci_hi": 0.0188240943,
+      "cum_response_per_pp": 0.0080821187,
+      "cum_ci_lo": 0.0029393819,
+      "cum_ci_hi": 0.0188240943
+    },
+    {
+      "horizon": 1,
+      "response_per_pp": 0.023167535,
+      "ci_lo": 0.0174437274,
+      "ci_hi": 0.0308460966,
+      "cum_response_per_pp": 0.0312496536,
+      "cum_ci_lo": 0.0222943643,
+      "cum_ci_hi": 0.0474645458
+    },
+    {
+      "horizon": 2,
+      "response_per_pp": -0.0083762443,
+      "ci_lo": -0.0144784752,
+      "ci_hi": 0.0002597953,
+      "cum_response_per_pp": 0.0228734093,
+      "cum_ci_lo": 0.0106976788,
+      "cum_ci_hi": 0.0432568989
+    },
+    {
+      "horizon": 3,
+      "response_per_pp": -0.0088029553,
+      "ci_lo": -0.0143164847,
+      "ci_hi": -0.0026895737,
+      "cum_response_per_pp": 0.014070454,
+      "cum_ci_lo": -0.0003157589,
+      "cum_ci_hi": 0.0375380566
+    },
+    {
+      "horizon": 4,
+      "response_per_pp": -0.0061076335,
+      "ci_lo": -0.0103903235,
+      "ci_hi": -0.0022395857,
+      "cum_response_per_pp": 0.0079628205,
+      "cum_ci_lo": -0.0060202523,
+      "cum_ci_hi": 0.031951898
+    },
+    {
+      "horizon": 5,
+      "response_per_pp": -0.0001001454,
+      "ci_lo": -0.002774329,
+      "ci_hi": 0.0034991549,
+      "cum_response_per_pp": 0.0078626751,
+      "cum_ci_lo": -0.0053783338,
+      "cum_ci_hi": 0.0304242464
+    },
+    {
+      "horizon": 6,
+      "response_per_pp": 0.0015462019,
+      "ci_lo": -0.0007271503,
+      "ci_hi": 0.0042544939,
+      "cum_response_per_pp": 0.009408877,
+      "cum_ci_lo": -0.002595753,
+      "cum_ci_hi": 0.0305440353
+    },
+    {
+      "horizon": 7,
+      "response_per_pp": 0.0013531718,
+      "ci_lo": -4.714e-06,
+      "ci_hi": 0.0032772188,
+      "cum_response_per_pp": 0.0107620489,
+      "cum_ci_lo": -0.000916885,
+      "cum_ci_hi": 0.031198726
+    },
+    {
+      "horizon": 8,
+      "response_per_pp": 0.0004379415,
+      "ci_lo": -0.0009459785,
+      "ci_hi": 0.0015719307,
+      "cum_response_per_pp": 0.0111999904,
+      "cum_ci_lo": -0.0007344414,
+      "cum_ci_hi": 0.0314087641
+    },
+    {
+      "horizon": 9,
+      "response_per_pp": -8.28635e-05,
+      "ci_lo": -0.0012922769,
+      "ci_hi": 0.0006176169,
+      "cum_response_per_pp": 0.0111171269,
+      "cum_ci_lo": -0.0011683808,
+      "cum_ci_hi": 0.0315547981
+    },
+    {
+      "horizon": 10,
+      "response_per_pp": -0.0002426295,
+      "ci_lo": -0.0011179431,
+      "ci_hi": 0.0002371633,
+      "cum_response_per_pp": 0.0108744974,
+      "cum_ci_lo": -0.0013843024,
+      "cum_ci_hi": 0.0315385788
+    },
+    {
+      "horizon": 11,
+      "response_per_pp": -0.0001701467,
+      "ci_lo": -0.000697382,
+      "ci_hi": 0.0002610618,
+      "cum_response_per_pp": 0.0107043507,
+      "cum_ci_lo": -0.0013824571,
+      "cum_ci_hi": 0.0314871415
+    },
+    {
+      "horizon": 12,
+      "response_per_pp": -5.09142e-05,
+      "ci_lo": -0.0003710129,
+      "ci_hi": 0.000385772,
+      "cum_response_per_pp": 0.0106534364,
+      "cum_ci_lo": -0.0013389236,
+      "cum_ci_hi": 0.031450786
+    }
+  ],
+  "garch_selection": [
+    {
+      "spec": "t, AR(1)-mean, GJR",
+      "aic": 7973.127041288,
+      "bic": 8015.6517638018,
+      "loglik": -3979.563520644,
+      "n_obs": 3213,
+      "convergence_flag": 0
+    },
+    {
+      "spec": "t, AR(1)-mean",
+      "aic": 7997.853366757,
+      "bic": 8034.3031289117,
+      "loglik": -3992.9266833785,
+      "n_obs": 3213,
+      "convergence_flag": 0
+    },
+    {
+      "spec": "t, const-mean",
+      "aic": 8030.9354275313,
+      "bic": 8061.3102293269,
+      "loglik": -4010.4677137657,
+      "n_obs": 3213,
+      "convergence_flag": 0
+    },
+    {
+      "spec": "Normal, const-mean",
+      "aic": 8306.7407620749,
+      "bic": 8331.0406035114,
+      "loglik": -4149.3703810375,
+      "n_obs": 3213,
+      "convergence_flag": 0
+    }
+  ],
+  "garch": [
+    {
+      "period": "весь период",
+      "n_obs": 3213,
+      "convergence_flag": 0,
+      "omega": 0.0376278527,
+      "alpha": 0.2879488574,
+      "gamma_asym": -0.159207171,
+      "beta": 0.7766658806,
+      "persistence": 0.9850111525,
+      "unconditional_var_pct2": 2.5103899792,
+      "ljung_box_resid_p": 0.2089158094,
+      "ljung_box_resid_sq_p": 0.4947372854
+    },
+    {
+      "period": "до 28.02.2022",
+      "n_obs": 2081,
+      "convergence_flag": 0,
+      "omega": 0.014545379,
+      "alpha": 0.1655412653,
+      "gamma_asym": -0.1293451905,
+      "beta": 0.8858287176,
+      "persistence": 0.9866973877,
+      "unconditional_var_pct2": 1.0934227555,
+      "ljung_box_resid_p": 0.5473525759,
+      "ljung_box_resid_sq_p": 0.6658335099
+    },
+    {
+      "period": "после 28.02.2022",
+      "n_obs": 1131,
+      "convergence_flag": 0,
+      "omega": 0.1227077141,
+      "alpha": 0.476971143,
+      "gamma_asym": -0.0949792471,
+      "beta": 0.5705184806,
+      "persistence": 1.0,
+      "unconditional_var_pct2": null,
+      "ljung_box_resid_p": 0.600656675,
+      "ljung_box_resid_sq_p": 6.08e-08
+    },
+    {
+      "period": "до смены измерения 13.06.2024",
+      "n_obs": 2646,
+      "convergence_flag": 0,
+      "omega": 0.0295437984,
+      "alpha": 0.2585073287,
+      "gamma_asym": -0.1607562329,
+      "beta": 0.8071413938,
+      "persistence": 0.9852706061,
+      "unconditional_var_pct2": 2.0057714916,
+      "ljung_box_resid_p": 0.424591412,
+      "ljung_box_resid_sq_p": 0.6714304719
+    },
+    {
+      "period": "после смены измерения 13.06.2024",
+      "n_obs": 566,
+      "convergence_flag": 0,
+      "omega": 0.1057235742,
+      "alpha": 0.3051426043,
+      "gamma_asym": -0.0314511268,
+      "beta": 0.6305759492,
+      "persistence": 0.9199929901,
+      "unconditional_var_pct2": 1.3214288878,
+      "ljung_box_resid_p": 0.8409519502,
+      "ljung_box_resid_sq_p": 0.6588980253
+    }
+  ],
+  "event": [
+    {
+      "n_events": 65,
+      "n_years": 13,
+      "observed_abnormal_abs_return_pct": 0.1252230716,
+      "placebo_abnormal_mean": -0.0170320899,
+      "placebo_abnormal_p95": 0.0701976171,
+      "p_value": 0.003996004,
+      "n_exceed": 3,
+      "n_permutations": 1000,
+      "seed": 20260101,
+      "event_window_obs": 11,
+      "baseline_obs": 30,
+      "inference": "описательное Monte Carlo сравнение; сопоставимость внутри года является предположением",
+      "subset": "все события (плацебо по годам, аномальная |r|)"
+    },
+    {
+      "n_events": 46,
+      "n_years": 10,
+      "observed_abnormal_abs_return_pct": 9.03136e-05,
+      "placebo_abnormal_mean": -0.0081274014,
+      "placebo_abnormal_p95": 0.0690284029,
+      "p_value": 0.4155844156,
+      "n_exceed": 415,
+      "n_permutations": 1000,
+      "seed": 20260101,
+      "event_window_obs": 11,
+      "baseline_obs": 30,
+      "inference": "описательное Monte Carlo сравнение; сопоставимость внутри года является предположением",
+      "subset": "без 2014/2015/2022 (кризисные годы)"
+    }
+  ],
+  "event_before_after": [
+    {
+      "n_events": 65,
+      "pre_proxy_abs_return_pct": 0.8382191681,
+      "post_proxy_abs_return_pct": 1.0658139387,
+      "baseline_30obs_before_window_pct": 0.8371386986,
+      "pre_window_obs": 5,
+      "post_window_obs": 6,
+      "subset": "все события"
+    },
+    {
+      "n_events": 46,
+      "pre_proxy_abs_return_pct": 0.5683218098,
+      "post_proxy_abs_return_pct": 0.5695091758,
+      "baseline_30obs_before_window_pct": 0.5688791503,
+      "pre_window_obs": 5,
+      "post_window_obs": 6,
+      "subset": "без 2014/2015/2022 (кризисные годы)"
+    }
+  ],
+  "forecast_summary": [
+    {
+      "regime": "вся OOS-выборка",
+      "h": 1,
+      "n": 118,
+      "target_min": "2016-11-30",
+      "target_max": "2026-08-31",
+      "rmse_naive": 0.054765757,
+      "mae_naive": 0.0327075936,
+      "rmse_var2_no_rate": 0.0694347639,
+      "mae_var2_no_rate": 0.0365168876,
+      "rmse_var3_with_rate": 0.0541312521,
+      "mae_var3_with_rate": 0.0344102931
+    },
+    {
+      "regime": "вся OOS-выборка",
+      "h": 2,
+      "n": 117,
+      "target_min": "2016-12-31",
+      "target_max": "2026-08-31",
+      "rmse_naive": 0.0549439284,
+      "mae_naive": 0.0327590391,
+      "rmse_var2_no_rate": 0.0601317491,
+      "mae_var2_no_rate": 0.0361180528,
+      "rmse_var3_with_rate": 0.0610661363,
+      "mae_var3_with_rate": 0.0381743804
+    },
+    {
+      "regime": "вся OOS-выборка",
+      "h": 3,
+      "n": 116,
+      "target_min": "2017-01-31",
+      "target_max": "2026-08-31",
+      "rmse_naive": 0.055083555,
+      "mae_naive": 0.0327382763,
+      "rmse_var2_no_rate": 0.0570174778,
+      "mae_var2_no_rate": 0.0356454574,
+      "rmse_var3_with_rate": 0.05686004,
+      "mae_var3_with_rate": 0.0363615634
+    },
+    {
+      "regime": "кризисные цели, доступный год: 2022",
+      "h": 1,
+      "n": 12,
+      "target_min": "2022-01-31",
+      "target_max": "2022-12-31",
+      "rmse_naive": 0.1383864847,
+      "mae_naive": 0.0916426371,
+      "rmse_var2_no_rate": 0.1916263677,
+      "mae_var2_no_rate": 0.1161990733,
+      "rmse_var3_with_rate": 0.1274142319,
+      "mae_var3_with_rate": 0.075699462
+    },
+    {
+      "regime": "кризисные цели, доступный год: 2022",
+      "h": 2,
+      "n": 12,
+      "target_min": "2022-01-31",
+      "target_max": "2022-12-31",
+      "rmse_naive": 0.1383864847,
+      "mae_naive": 0.0916426371,
+      "rmse_var2_no_rate": 0.1516380248,
+      "mae_var2_no_rate": 0.0953398064,
+      "rmse_var3_with_rate": 0.1527790666,
+      "mae_var3_with_rate": 0.1090672653
+    },
+    {
+      "regime": "кризисные цели, доступный год: 2022",
+      "h": 3,
+      "n": 12,
+      "target_min": "2022-01-31",
+      "target_max": "2022-12-31",
+      "rmse_naive": 0.1383864847,
+      "mae_naive": 0.0916426371,
+      "rmse_var2_no_rate": 0.1407850233,
+      "mae_var2_no_rate": 0.0926288586,
+      "rmse_var3_with_rate": 0.1396930411,
+      "mae_var3_with_rate": 0.0988123201
+    },
+    {
+      "regime": "остальные годы OOS-выборки",
+      "h": 1,
+      "n": 106,
+      "target_min": "2016-11-30",
+      "target_max": "2026-08-31",
+      "rmse_naive": 0.0342171439,
+      "mae_naive": 0.0260357019,
+      "rmse_var2_no_rate": 0.0347839725,
+      "mae_var2_no_rate": 0.0274962628,
+      "rmse_var3_with_rate": 0.0377366834,
+      "mae_var3_with_rate": 0.0297360476
+    },
+    {
+      "regime": "остальные годы OOS-выборки",
+      "h": 2,
+      "n": 105,
+      "target_min": "2016-12-31",
+      "target_max": "2026-08-31",
+      "rmse_naive": 0.034280898,
+      "mae_naive": 0.026029485,
+      "rmse_var2_no_rate": 0.0374321866,
+      "mae_var2_no_rate": 0.0293498524,
+      "rmse_var3_with_rate": 0.0385701863,
+      "mae_var3_with_rate": 0.0300723364
+    },
+    {
+      "regime": "остальные годы OOS-выборки",
+      "h": 3,
+      "n": 104,
+      "target_min": "2017-01-31",
+      "target_max": "2026-08-31",
+      "rmse_naive": 0.0342722614,
+      "mae_naive": 0.0259416193,
+      "rmse_var2_no_rate": 0.0365941999,
+      "mae_var2_no_rate": 0.0290704496,
+      "rmse_var3_with_rate": 0.036803231,
+      "mae_var3_with_rate": 0.0291557068
+    }
+  ],
+  "forecast_comparison": [
+    {
+      "restricted_model": "naive",
+      "unrestricted_model": "var3_with_rate",
+      "h": 1,
+      "n": 118,
+      "hac_lags": 4,
+      "mean_raw_loss_difference": 6.90957e-05,
+      "mean_adjusted_loss_difference": 0.0014252174,
+      "hac_standard_error": 0.0008304504,
+      "z_stat": 1.7161982139,
+      "p_one_sided": 0.043062885,
+      "conclusion": "приближённый тест поддерживает добавочную прогнозную информацию",
+      "method": "Clark-West для вложенных моделей, HAC Bartlett; асимптотическая аппроксимация"
+    },
+    {
+      "restricted_model": "var2_no_rate",
+      "unrestricted_model": "var3_with_rate",
+      "h": 1,
+      "n": 118,
+      "hac_lags": 4,
+      "mean_raw_loss_difference": 0.001890994,
+      "mean_adjusted_loss_difference": 0.0030727769,
+      "hac_standard_error": 0.0026823835,
+      "z_stat": 1.1455397602,
+      "p_one_sided": 0.1259928174,
+      "conclusion": "добавочная прогнозная информация не подтверждена на 5%",
+      "method": "Clark-West для вложенных моделей, HAC Bartlett; асимптотическая аппроксимация"
+    }
+  ],
+  "robustness": [
+    {
+      "check": "альтернативный лаг",
+      "variant": "VAR(1)",
+      "n_obs": 153,
+      "rate_to_fx_p": 1.7e-09,
+      "fx_to_rate_p": 0.0098182635,
+      "conclusion": "p<0.05: ставка→курс, курс→ставка"
+    },
+    {
+      "check": "альтернативный лаг",
+      "variant": "VAR(2) (основной)",
+      "n_obs": 152,
+      "rate_to_fx_p": 4.261924843e-20,
+      "fx_to_rate_p": 0.0047346621,
+      "conclusion": "p<0.05: ставка→курс, курс→ставка"
+    },
+    {
+      "check": "альтернативный лаг",
+      "variant": "VAR(3)",
+      "n_obs": 151,
+      "rate_to_fx_p": 2.793637911e-17,
+      "fx_to_rate_p": 0.042941792,
+      "conclusion": "p<0.05: ставка→курс, курс→ставка"
+    },
+    {
+      "check": "подпериод",
+      "variant": "до 28.02.2022 (вкл. кризис 2014-15)",
+      "n_obs": 97,
+      "rate_to_fx_p": 0.0648152336,
+      "fx_to_rate_p": 0.0416416046,
+      "conclusion": "p<0.05: курс→ставка"
+    },
+    {
+      "check": "подпериод",
+      "variant": "после 28.02.2022 (вкл. острую фазу 2022)",
+      "n_obs": 52,
+      "rate_to_fx_p": 0.7844852364,
+      "fx_to_rate_p": 1.04863e-05,
+      "conclusion": "p<0.05: курс→ставка"
+    },
+    {
+      "check": "подпериод",
+      "variant": "спокойный период 2015-06..2021-12 (основной)",
+      "n_obs": 76,
+      "rate_to_fx_p": 0.5437273925,
+      "fx_to_rate_p": 0.3692402864,
+      "conclusion": "оба p>=0.05; отсутствие связи не установлено"
+    },
+    {
+      "check": "подпериод",
+      "variant": "спокойный период, начало сдвинуто на 7 мес.: 2016-01..2021-12",
+      "n_obs": 69,
+      "rate_to_fx_p": 0.3155968797,
+      "fx_to_rate_p": 0.544467668,
+      "conclusion": "оба p>=0.05; отсутствие связи не установлено"
+    },
+    {
+      "check": "подпериод",
+      "variant": "спокойный период, конец сдвинут на 6 мес.: 2015-06..2021-06",
+      "n_obs": 70,
+      "rate_to_fx_p": 0.4475425871,
+      "fx_to_rate_p": 0.0483938633,
+      "conclusion": "p<0.05: курс→ставка"
+    },
+    {
+      "check": "подпериод",
+      "variant": "после острой фазы 2022-09..",
+      "n_obs": 45,
+      "rate_to_fx_p": 0.7423433634,
+      "fx_to_rate_p": 0.3633127801,
+      "conclusion": "оба p>=0.05; отсутствие связи не установлено"
+    },
+    {
+      "check": "подпериод",
+      "variant": "до смены измерения курса, полные месяцы по 2024-05",
+      "n_obs": 125,
+      "rate_to_fx_p": 1.498015823e-18,
+      "fx_to_rate_p": 0.0022617222,
+      "conclusion": "p<0.05: ставка→курс, курс→ставка"
+    },
+    {
+      "check": "подпериод",
+      "variant": "после смены измерения курса, полные месяцы с 2024-07",
+      "n_obs": 23,
+      "rate_to_fx_p": 0.6869128827,
+      "fx_to_rate_p": 0.4402945413,
+      "conclusion": "оба p>=0.05; отсутствие связи не установлено"
+    },
+    {
+      "check": "нейтрализация кризисных наблюдений (дамми по одному на наблюдение)",
+      "variant": "2022 (фев-апр), дамми@t",
+      "n_obs": 152,
+      "rate_to_fx_p": 0.1076481926,
+      "fx_to_rate_p": 7.272e-06,
+      "conclusion": "p<0.05: курс→ставка"
+    },
+    {
+      "check": "нейтрализация кризисных наблюдений (дамми по одному на наблюдение)",
+      "variant": "2022 (фев-апр), дамми@t..t+2",
+      "n_obs": 152,
+      "rate_to_fx_p": 0.174165102,
+      "fx_to_rate_p": 0.0686379903,
+      "conclusion": "оба p>=0.05; отсутствие связи не установлено"
+    },
+    {
+      "check": "нейтрализация кризисных наблюдений (дамми по одному на наблюдение)",
+      "variant": "2014-15 (ноя-фев), дамми@t",
+      "n_obs": 152,
+      "rate_to_fx_p": 1.704087402e-20,
+      "fx_to_rate_p": 0.0209721186,
+      "conclusion": "p<0.05: ставка→курс, курс→ставка"
+    },
+    {
+      "check": "нейтрализация кризисных наблюдений (дамми по одному на наблюдение)",
+      "variant": "2014-15 (ноя-фев), дамми@t..t+2",
+      "n_obs": 152,
+      "rate_to_fx_p": 3.300399686e-22,
+      "fx_to_rate_p": 0.0247670681,
+      "conclusion": "p<0.05: ставка→курс, курс→ставка"
+    },
+    {
+      "check": "нейтрализация кризисных наблюдений (дамми по одному на наблюдение)",
+      "variant": "оба кризиса, дамми@t",
+      "n_obs": 152,
+      "rate_to_fx_p": 0.7419015965,
+      "fx_to_rate_p": 4e-10,
+      "conclusion": "p<0.05: курс→ставка"
+    },
+    {
+      "check": "нейтрализация кризисных наблюдений (дамми по одному на наблюдение)",
+      "variant": "оба кризиса, дамми@t..t+2",
+      "n_obs": 152,
+      "rate_to_fx_p": 0.7778484377,
+      "fx_to_rate_p": 0.0804660942,
+      "conclusion": "оба p>=0.05; отсутствие связи не установлено"
+    },
+    {
+      "check": "хвост выборки",
+      "variant": "полный период (основной)",
+      "n_obs": 152,
+      "rate_to_fx_p": 4.261924843e-20,
+      "fx_to_rate_p": 0.0047346621,
+      "conclusion": "p<0.05: ставка→курс, курс→ставка"
+    },
+    {
+      "check": "хвост выборки",
+      "variant": "без хвоста 07-08.2026",
+      "n_obs": 150,
+      "rate_to_fx_p": 4.716621242e-20,
+      "fx_to_rate_p": 0.004665891,
+      "conclusion": "p<0.05: ставка→курс, курс→ставка"
+    },
+    {
+      "check": "конвенция агрегации по месяцу",
+      "variant": "ставка=конец, курс/нефть=среднее (основная)",
+      "n_obs": 152,
+      "rate_to_fx_p": 4.261924843e-20,
+      "fx_to_rate_p": 0.0047346621,
+      "conclusion": "p<0.05: ставка→курс, курс→ставка"
+    },
+    {
+      "check": "конвенция агрегации по месяцу",
+      "variant": "все три = среднее за месяц",
+      "n_obs": 152,
+      "rate_to_fx_p": 7.80359e-05,
+      "fx_to_rate_p": 0.0326865417,
+      "conclusion": "p<0.05: ставка→курс, курс→ставка"
+    },
+    {
+      "check": "конвенция агрегации по месяцу",
+      "variant": "все три = конец месяца",
+      "n_obs": 152,
+      "rate_to_fx_p": 1.325e-07,
+      "fx_to_rate_p": 0.0025161866,
+      "conclusion": "p<0.05: ставка→курс, курс→ставка"
+    }
+  ],
+  "irf_ordering": [
+    {
+      "ordering": "key_rate, usdrub, brent (основной)",
+      "peak_horizon": 1,
+      "peak_value_per_pp": 0.023167535,
+      "sign": "+",
+      "cum_effect_h3_per_pp": 0.014070454,
+      "own_shock_per_pp": 1.0,
+      "note": "нормировка на собственный одновременный импульс P[j,j]; порядок задаёт идентификационные ограничения"
+    },
+    {
+      "ordering": "usdrub, key_rate, brent",
+      "peak_horizon": 1,
+      "peak_value_per_pp": 0.0201473639,
+      "sign": "+",
+      "cum_effect_h3_per_pp": 0.0017146727,
+      "own_shock_per_pp": 1.0,
+      "note": "нормировка на собственный одновременный импульс P[j,j]; порядок задаёт идентификационные ограничения"
+    },
+    {
+      "ordering": "brent, key_rate, usdrub",
+      "peak_horizon": 1,
+      "peak_value_per_pp": 0.0231398294,
+      "sign": "+",
+      "cum_effect_h3_per_pp": 0.0140107214,
+      "own_shock_per_pp": 1.0,
+      "note": "нормировка на собственный одновременный импульс P[j,j]; порядок задаёт идентификационные ограничения"
+    }
+  ],
+  "effect_size": [
+    {
+      "lag_order": 2,
+      "sum_rate_lag_coefficients": 0.0005136145,
+      "ci_lo": -0.0077985939,
+      "ci_hi": 0.008825823,
+      "interpretation": "сумма условных коэффициентов уравнения Δlog курса; динамический отклик дан отдельно в IRF"
+    }
+  ],
+  "lag_selection": [
+    {
+      "scale": "levels",
+      "criterion": "aic",
+      "selected_lag": 3,
+      "baseline_fixed_lag": 2
+    },
+    {
+      "scale": "levels",
+      "criterion": "bic",
+      "selected_lag": 3,
+      "baseline_fixed_lag": 2
+    },
+    {
+      "scale": "levels",
+      "criterion": "hqic",
+      "selected_lag": 3,
+      "baseline_fixed_lag": 2
+    },
+    {
+      "scale": "levels",
+      "criterion": "fpe",
+      "selected_lag": 3,
+      "baseline_fixed_lag": 2
+    },
+    {
+      "scale": "differences",
+      "criterion": "aic",
+      "selected_lag": 2,
+      "baseline_fixed_lag": 2
+    },
+    {
+      "scale": "differences",
+      "criterion": "bic",
+      "selected_lag": 2,
+      "baseline_fixed_lag": 2
+    },
+    {
+      "scale": "differences",
+      "criterion": "hqic",
+      "selected_lag": 2,
+      "baseline_fixed_lag": 2
+    },
+    {
+      "scale": "differences",
+      "criterion": "fpe",
+      "selected_lag": 2,
+      "baseline_fixed_lag": 2
+    }
+  ],
+  "rolling_summary": {
+    "n_windows": 96,
+    "rate_to_fx_p": {
+      "n_valid": 96,
+      "fraction_below_005": 0.6041666666666666
+    },
+    "rate_to_fx_p_neutralized": {
+      "n_valid": 96,
+      "fraction_below_005": 0.020833333333333332
+    }
+  }
+}

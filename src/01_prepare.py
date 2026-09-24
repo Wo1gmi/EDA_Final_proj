@@ -1,22 +1,16 @@
-"""Строит два аналитических файла из трёх сырых рядов:
-
-- monthly_panel.parquet  — ключевая ставка (конец месяца), курс и Brent
-  (средние за месяц) — вход для VAR/Грейнджера/IRF.
-- daily_returns.parquet  — дневные лог-доходности курса с флагом дат
-  решений по ставке — вход для GARCH и событийного исследования.
-
-Здесь же считаются базовые факты о рядах и тест на коинтеграцию,
-определяющий спецификацию VAR (VAR-в-разностях vs VECM).
-
-Авторы: команда (ФИО — см. README).
-"""
+"""Подготовка данных и диагностика моделируемых рядов."""
 
 import sys
+import json
+import hashlib
+import warnings
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from statsmodels.tools.sm_exceptions import InterpolationWarning
 from statsmodels.tsa.stattools import adfuller, kpss
+from statsmodels.tsa.vector_ar.var_model import VAR
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -25,10 +19,16 @@ from src import config as cfg
 VAR_SPEC_FILE = cfg.DATA_PROCESSED / "var_spec_decision.txt"
 
 
+def within_source_window(df: pd.DataFrame) -> pd.DataFrame:
+    start = pd.to_datetime(cfg.SAMPLE_START, dayfirst=True)
+    end = pd.to_datetime(cfg.SAMPLE_END, dayfirst=True)
+    return df[df["date"].between(start, end)].copy()
+
+
 def load_keyrate() -> pd.DataFrame:
     df = pd.read_csv(cfg.RAW_KEYRATE_FILE)
     df["date"] = pd.to_datetime(df["date"], format="%d.%m.%Y")
-    df = df.drop_duplicates("date").sort_values("date").reset_index(drop=True)
+    df = within_source_window(df).drop_duplicates("date").sort_values("date").reset_index(drop=True)
     return df[["date", "rate"]].rename(columns={"rate": "key_rate"})
 
 
@@ -36,7 +36,7 @@ def load_usdrub() -> pd.DataFrame:
     df = pd.read_csv(cfg.RAW_USDRUB_FILE)
     df["date"] = pd.to_datetime(df["date"], format="%d.%m.%Y")
     df["usdrub"] = df["value"] / df["nominal"]
-    df = df.drop_duplicates("date").sort_values("date").reset_index(drop=True)
+    df = within_source_window(df).drop_duplicates("date").sort_values("date").reset_index(drop=True)
     return df[["date", "usdrub"]]
 
 
@@ -44,19 +44,24 @@ def load_brent() -> pd.DataFrame:
     df = pd.read_csv(cfg.RAW_BRENT_FILE)
     df.columns = ["date", "brent"]
     df["date"] = pd.to_datetime(df["date"])
-    df = df[df["brent"] != "."].copy()
-    df["brent"] = df["brent"].astype(float)
-    df = df[(df["date"] >= pd.to_datetime(cfg.SAMPLE_START, dayfirst=True))]
+    df["brent"] = pd.to_numeric(df["brent"], errors="coerce")
+    df = within_source_window(df).dropna(subset=["brent"])
     return df.drop_duplicates("date").sort_values("date").reset_index(drop=True)
 
 
-def build_monthly_panel(key: pd.DataFrame, usd: pd.DataFrame, brent: pd.DataFrame) -> pd.DataFrame:
-    key_m = key.set_index("date")["key_rate"].resample("ME").last()
-    usd_m = usd.set_index("date")["usdrub"].resample("ME").mean()
-    brent_m = brent.set_index("date")["brent"].resample("ME").mean()
+def build_monthly_panel(key: pd.DataFrame, usd: pd.DataFrame, brent: pd.DataFrame,
+                        rate_agg: str = "last", fx_agg: str = "mean") -> pd.DataFrame:
+    key_m = key.set_index("date")["key_rate"].resample("ME").agg(rate_agg)
+    usd_m = usd.set_index("date")["usdrub"].resample("ME").agg(fx_agg)
+    brent_m = brent.set_index("date")["brent"].resample("ME").agg(fx_agg)
     panel = pd.concat([key_m, usd_m, brent_m], axis=1, sort=True)
     panel.columns = ["key_rate", "usdrub", "brent"]
-    panel = panel.dropna().reset_index().rename(columns={"index": "date"})
+    panel = panel.loc[cfg.MONTHLY_START:cfg.MONTHLY_END].dropna().reset_index()
+    expected_dates = pd.date_range(cfg.MONTHLY_START, cfg.MONTHLY_END, freq="ME")
+    if not panel["date"].equals(pd.Series(expected_dates, name="date")):
+        raise ValueError("В полной месячной панели есть пропуски или изменились границы.")
+    if (panel[["key_rate", "usdrub", "brent"]] <= 0).any().any():
+        raise ValueError("В панели обнаружены неположительные значения.")
     panel["volatile_tail"] = panel["date"] >= pd.to_datetime(cfg.VOLATILE_TAIL_START)
     return panel
 
@@ -64,101 +69,60 @@ def build_monthly_panel(key: pd.DataFrame, usd: pd.DataFrame, brent: pd.DataFram
 def build_daily_returns(usd: pd.DataFrame, key: pd.DataFrame) -> pd.DataFrame:
     df = usd.sort_values("date").reset_index(drop=True).copy()
     df["log_return"] = np.log(df["usdrub"]).diff()
-    df = df.dropna(subset=["log_return"]).reset_index(drop=True)
-
-    key_sorted = key.sort_values("date").reset_index(drop=True)
-    changes = key_sorted[key_sorted["key_rate"].diff() != 0].iloc[1:]  # drop first row (no diff)
-
-    # ВАЖНО: дата в выгрузке ставки — дата вступления решения в силу, а дата
-    # в выгрузке курса — дата действия официального фиксинга (T+1 от торговой
-    # сессии, отсюда 0 понедельников в usd_dates). Прямое сравнение дат
-    # совпадает только в 5 случаях из 65; сдвиг даты решения на +1
-    # календарный день даёт 65 совпадений из 65.
-    shifted_dates = set(changes["date"] + pd.Timedelta(days=1))
-    df["rate_decision_day"] = df["date"].isin(shifted_dates)
-    n_flagged = df["rate_decision_day"].sum()
-    if n_flagged != len(changes):
-        raise RuntimeError(
-            f"Ожидал {len(changes)} размеченных дат решений, получил {n_flagged} — "
-            "смещение дат больше не 1 день, проверить заново."
-        )
+    df = df.dropna(subset=["log_return"])
+    df = df[df["date"] >= key["date"].min()].reset_index(drop=True)
+    changes = key.assign(change_pp=key["key_rate"].diff())
+    changes = changes[changes["change_pp"].notna() & changes["change_pp"].ne(0)].copy()
+    changes = changes.rename(columns={"date": "effective_date"})
+    changes["fx_proxy_date"] = changes["effective_date"] + pd.Timedelta(days=1)
+    changes["matched_official_fx_record"] = changes["fx_proxy_date"].isin(df["date"])
+    changes["date_definition"] = "Дата вступления ставки в силу + 1 календарный день; прокси даты наблюдения официального курса"
+    changes["announcement_date_verified"] = False
+    changes.to_csv(cfg.EVENT_CALENDAR_FILE, index=False)
+    if not changes["matched_official_fx_record"].all():
+        raise ValueError("Часть прокси дат изменений ставки отсутствует в ряду официального курса.")
+    df["rate_effective_proxy_day"] = df["date"].isin(changes["fx_proxy_date"])
     return df
 
 
 def stationarity_tests(panel: pd.DataFrame) -> pd.DataFrame:
-    """ADF+KPSS по уровням и разностям, с константой ("c") и с константой+
-    трендом ("ct"): усреднённый курс на графике R1 явно растёт, регрессия
-    только "c" для него не обоснована. Уровни всё равно не используются
-    напрямую в модели (VAR строится на первых разностях) — различие между
-    "I(1)" и "трендостационарно" для итоговой спецификации нейтрально,
-    разность снимает оба случая, но расхождение тестов надо явно
-    проговорить, а не спрятать."""
     rows = []
-    for col in ["key_rate", "usdrub", "brent"]:
-        for transform, series in [
-            ("level", panel[col]),
-            ("diff", panel[col].diff().dropna()),
-        ]:
-            for reg in ["c", "ct"]:
-                adf_stat, adf_p, *_ = adfuller(series, regression=reg, autolag="AIC")
-                try:
-                    kpss_stat, kpss_p, *_ = kpss(series, regression=reg, nlags="auto")
-                except Exception:
-                    kpss_stat, kpss_p = np.nan, np.nan
-                rows.append(
-                    {
-                        "variable": col,
-                        "transform": transform,
-                        "regression": reg,
-                        "adf_stat": adf_stat,
-                        "adf_p": adf_p,
-                        "kpss_stat": kpss_stat,
-                        "kpss_p": kpss_p,
-                    }
-                )
+    model_levels = panel[["key_rate", "usdrub", "brent"]].copy()
+    model_levels[["usdrub", "brent"]] = np.log(model_levels[["usdrub", "brent"]])
+    for col in model_levels:
+        for transform, series in [("model_level", model_levels[col]),
+                                  ("model_diff", model_levels[col].diff().dropna())]:
+            for regression in ["c", "ct"]:
+                adf_stat, adf_p, *_ = adfuller(series, regression=regression, autolag="AIC", result_object=False)
+                with warnings.catch_warnings(record=True) as caught:
+                    warnings.simplefilter("always", InterpolationWarning)
+                    kpss_stat, kpss_p, *_ = kpss(series, regression=regression, nlags="auto")
+                bounded = any(issubclass(item.category, InterpolationWarning) for item in caught)
+                rows.append({"variable": col, "scale": "percentage_points" if col == "key_rate" else "log",
+                             "transform": transform, "regression": regression, "n_obs": len(series),
+                             "adf_stat": adf_stat, "adf_p": adf_p, "kpss_stat": kpss_stat,
+                             "kpss_p": kpss_p, "kpss_p_is_table_bound": bounded})
     return pd.DataFrame(rows)
 
 
-def stationarity_decisions(t2: pd.DataFrame) -> list[str]:
-    """Явное решение по каждому ряду в уровнях, а не молчаливый переход
-    к разностям: что показали тесты и что мы из этого делаем."""
+def stationarity_decisions(table: pd.DataFrame) -> list[str]:
     lines = []
-    for col in ["key_rate", "usdrub", "brent"]:
-        lvl = t2[(t2["variable"] == col) & (t2["transform"] == "level")]
-        c = lvl[lvl["regression"] == "c"].iloc[0]
-        ct = lvl[lvl["regression"] == "ct"].iloc[0]
-        agree_c = (c["adf_p"] >= 0.05) == (c["kpss_p"] < 0.05)
-        agree_ct = (ct["adf_p"] >= 0.05) == (ct["kpss_p"] < 0.05)
-        lines.append(
-            f"{col}: без тренда ADF p={c['adf_p']:.3f} / KPSS p={c['kpss_p']:.3f} "
-            f"({'согласны' if agree_c else 'РАСХОДЯТСЯ'}); "
-            f"с трендом ADF p={ct['adf_p']:.3f} / KPSS p={ct['kpss_p']:.3f} "
-            f"({'согласны' if agree_ct else 'РАСХОДЯТСЯ'})"
-        )
-    lines.append(
-        "Решение: usdrub без тренда — тесты расходятся (погранично); с трендом "
-        "оба указывают на трендовую стационарность, а не единичный корень. "
-        "На выбор спецификации VAR это не влияет: модель строится на первых "
-        "разностях всех трёх рядов (п. 0.5), а разность снимает и единичный "
-        "корень, и линейный тренд — расхождение важно для интерпретации "
-        "уровней, не для самой модели."
-    )
+    for _, row in table.iterrows():
+        adf = "отвергается единичный корень" if row.adf_p < .05 else "единичный корень не отвергается"
+        kpss_result = "стационарность отвергается" if row.kpss_p < .05 else "стационарность не отвергается"
+        boundary = " (табличная граница p)" if row.kpss_p_is_table_bound else ""
+        lines.append(f"{row.variable}, {row['transform']}, {row.regression}: ADF {adf}; KPSS {kpss_result}{boundary}.")
+    lines.append("Тесты относятся к моделируемым шкалам: ставка в п.п., курс и Brent в логарифмах. "
+                 "Расхождение тестов и структурные сдвиги ограничивают классификацию порядка интеграции.")
     return lines
 
 
 def johansen_rank(data: np.ndarray, k_ar_diff: int) -> tuple[int, list[str]]:
-    """Ранг коинтеграции по последовательной процедуре теста Йохансена:
-    ранг = число подряд отвергнутых H0 начиная с r=0, остановка на первом
-    "не отвергаем" (а не просто подсчёт строк, где stat > crit — это дало бы
-    неверный ранг при немонотонном разрыве последовательности)."""
     result = coint_johansen(data, det_order=0, k_ar_diff=k_ar_diff)
-    trace_stats, crit_95 = result.lr1, result.cvt[:, 1]
     rank, stopped, lines = 0, False, []
-    for r, (stat, crit) in enumerate(zip(trace_stats, crit_95)):
-        reject = stat > crit
-        verdict = "отвергаем H0" if reject else "не отвергаем H0"
-        margin_note = " (граница, разница <1)" if abs(stat - crit) < 1 else ""
-        lines.append(f"    r<={r}: stat={stat:.2f}, crit_95={crit:.2f} -> {verdict}{margin_note}")
+    for r, (stat, critical) in enumerate(zip(result.lr1, result.cvt[:, 1])):
+        reject = stat > critical
+        lines.append(f"r<={r}: trace={stat:.4f}, critical_95={critical:.4f}, reject={reject}")
         if reject and not stopped:
             rank += 1
         else:
@@ -167,96 +131,88 @@ def johansen_rank(data: np.ndarray, k_ar_diff: int) -> tuple[int, list[str]]:
 
 
 def johansen_decision(panel: pd.DataFrame) -> str:
-    from statsmodels.tsa.vector_ar.var_model import VAR
-
-    data = panel[["key_rate", "usdrub", "brent"]].copy()
-    data["usdrub"] = np.log(data["usdrub"])
-    data["brent"] = np.log(data["brent"])
-    values = data.values
-
-    # Лаг для VECM выбираем из данных, а не произвольно: сначала подбираем
-    # порядок VAR в уровнях (AIC/BIC/HQIC/FPE), затем k_ar_diff = p - 1.
-    # Произвольный k_ar_diff=1 (первая версия скрипта) давал ранг=1 на самой
-    # границе критического значения — это была ошибка методики, не находка.
-    order = VAR(values).select_order(cfg.VAR_MAX_LAG)
-    p_bic = order.selected_orders["bic"]
-    principal_kd = max(p_bic - 1, 1)
-
-    lines = [
-        f"Выбор лага VAR по BIC (данные, не произвольный выбор): p={p_bic}",
-        f"=> k_ar_diff для VECM/Йохансена = {principal_kd}",
-        "",
-        "Чувствительность ранга коинтеграции к k_ar_diff (обязательная проверка,",
-        "т.к. ранг оказался чувствителен к выбору лага):",
-    ]
-    ranks = {}
-    for kd in sorted({1, 2, 3, principal_kd}):
-        rank, detail = johansen_rank(values, kd)
-        ranks[kd] = rank
-        lines.append(f"  k_ar_diff={kd} (trace, 5%): ранг={rank}")
-        lines.extend(detail)
-
-    n_coint = ranks[principal_kd]
-    decision = "vecm" if n_coint > 0 else "var_diff"
-    lines.append(
-        f"\nОсновная спецификация использует лаг, выбранный по данным (k_ar_diff={principal_kd}), "
-        f"а не произвольный: ранг={n_coint} => {decision}."
-    )
-    if len(set(ranks.values())) > 1:
-        lines.append(
-            "ВНИМАНИЕ: ранг не одинаков при разных k_ar_diff — вывод о коинтеграции "
-            "неустойчив к выбору лага. Показывать обе спецификации (VECM и VAR-в-разностях) "
-            "в результатах, не только основную."
-        )
-    print("\n".join(lines))
-    VAR_SPEC_FILE.write_text("\n".join(lines) + f"\n\nSPEC={decision}\nKD={principal_kd}\n", encoding="utf-8")
-    return decision
+    levels = panel[["key_rate", "usdrub", "brent"]].copy()
+    levels[["usdrub", "brent"]] = np.log(levels[["usdrub", "brent"]])
+    level_order = VAR(levels.values).select_order(cfg.VAR_MAX_LAG)
+    level_p = int(level_order.selected_orders["bic"])
+    principal_kd = max(level_p - 1, 0)
+    diff_order = VAR(levels.diff().dropna().values).select_order(cfg.VAR_MAX_LAG)
+    lines = [f"BIC для VAR в уровнях: p={level_p}; k_ar_diff={principal_kd}.",
+             f"BIC для VAR в разностях: p={diff_order.selected_orders['bic']}.",
+             f"Основная модель: VAR({cfg.VAR_LAG}) изменений ставки и логарифмов курса/Brent.",
+             "Лаг 2 фиксирован для базовой модели и прогноза; лаги 1 и 3 проверяются отдельно.",
+             "Тест Йохансена служит диагностикой чувствительности долгосрочной спецификации.",
+             "Его интерпретация предполагает интеграцию рядов первого порядка; ADF/KPSS дают ограничения."]
+    for kd in sorted({0, 1, 2, 3, principal_kd}):
+        rank, detail = johansen_rank(levels.values, kd)
+        lines.extend([f"k_ar_diff={kd}: rank={rank}", *detail])
+    lines.extend(["VECM с rank=1 и k_ar_diff=1 показана как условная проверка чувствительности.",
+                  "Результат VECM зависит от принятого ранга; модель не устанавливает причинный эффект.",
+                  "SPEC=var_diff", f"KD={cfg.VAR_LAG}", f"JOHANSEN_KD={principal_kd}"])
+    text = "\n".join(lines) + "\n"
+    VAR_SPEC_FILE.write_text(text, encoding="utf-8")
+    print(text)
+    return "var_diff"
 
 
 def print_audit_facts(key: pd.DataFrame, usd: pd.DataFrame, brent: pd.DataFrame, panel: pd.DataFrame) -> None:
-    print("\n=== Пересчёт фактов раздела 0 плана ===")
-    print(f"Ключевая ставка: {len(key)} строк, {key['date'].min().date()} .. {key['date'].max().date()}")
-    n_changes = int((key["key_rate"].diff() != 0).sum() - 1)
-    print(f"  фактических изменений ставки: {n_changes}")
-    print(f"  диапазон: {key['key_rate'].min()}% .. {key['key_rate'].max()}%")
+    for name, data in [("Ключевая ставка", key), ("USD/RUB", usd), ("Brent", brent)]:
+        print(f"{name}: {len(data)} строк; {data.date.min().date()} .. {data.date.max().date()}")
+    print(f"Полные месяцы: {len(panel)}; {panel.date.min().date()} .. {panel.date.max().date()}")
+    print(f"Изменений ставки: {int(key.key_rate.diff().dropna().ne(0).sum())}")
 
-    print(f"Курс USD/RUB: {len(usd)} строк, {usd['date'].min().date()} .. {usd['date'].max().date()}")
-    peak = usd.loc[usd["usdrub"].idxmax()]
-    print(f"  пик: {peak['usdrub']:.2f} на {peak['date'].date()}")
 
-    print(f"Brent: {len(brent)} строк, {brent['date'].min().date()} .. {brent['date'].max().date()}")
-    print(f"  последнее значение: {brent['brent'].iloc[-1]:.1f}$ на {brent['date'].iloc[-1].date()}")
-
-    print(f"\nМесячная панель: {len(panel)} месяцев, {panel['date'].min().date()} .. {panel['date'].max().date()}")
-    corr = panel[["key_rate", "usdrub", "brent"]].corr()
-    print("Корреляция уровней:")
-    print(corr.round(3))
+def source_audit(panel: pd.DataFrame, daily: pd.DataFrame) -> None:
+    sources = []
+    for name, path, date_format, value_columns, units in [
+        ("key_rate", cfg.RAW_KEYRATE_FILE, "%d.%m.%Y", ["rate"], "проценты годовых"),
+        ("usdrub", cfg.RAW_USDRUB_FILE, "%d.%m.%Y", ["nominal", "value"], "рублей за 1 доллар США после деления на nominal"),
+        ("brent", cfg.RAW_BRENT_FILE, None, None, "долларов США за баррель")]:
+        raw = pd.read_csv(path)
+        if name == "brent":
+            raw.columns = ["date", "brent"]
+            value_columns = ["brent"]
+        dates = pd.to_datetime(raw["date"], format=date_format)
+        numeric = raw[value_columns].apply(pd.to_numeric, errors="coerce")
+        same_date = raw.groupby("date")[value_columns].nunique(dropna=False)
+        start = pd.to_datetime(cfg.SAMPLE_START, dayfirst=True)
+        end = pd.to_datetime(cfg.SAMPLE_END, dayfirst=True)
+        sources.append({"series": name, "raw_rows": len(raw), "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                        "raw_min_date": str(dates.min().date()), "raw_max_date": str(dates.max().date()),
+                        "duplicate_dates": int(dates.duplicated().sum()),
+                        "conflicting_duplicate_dates": int(same_date.gt(1).any(axis=1).sum()),
+                        "missing_numeric_rows": int(numeric.isna().any(axis=1).sum()),
+                        "rows_outside_source_window": int((~dates.between(start,end)).sum()), "units": units})
+    payload = {"authors": cfg.__author__.split("; "), "source_start": cfg.SAMPLE_START, "source_cutoff": cfg.SAMPLE_END,
+               "monthly_start": str(panel.date.min().date()), "monthly_end": str(panel.date.max().date()),
+               "monthly_n": len(panel), "daily_start": str(daily.date.min().date()),
+               "daily_end": str(daily.date.max().date()), "daily_n": len(daily),
+               "rate_change_proxy_n": int(daily.rate_effective_proxy_day.sum()),
+               "partial_months_excluded": ["2013-09", "2026-09"],
+               "monthly_rule": "ставка последняя в месяце; USD/RUB и Brent среднее доступных наблюдений",
+               "daily_rule": "логарифмическая разность последовательных опубликованных значений официального курса",
+               "event_date_rule": "дата вступления изменения ставки в силу плюс 1 календарный день",
+               "event_announcement_dates_verified": False,
+               "fx_measurement_break": cfg.FX_MEASUREMENT_BREAK,
+               "sources": sources}
+    (cfg.OUTPUT_TABLES / "T0_data_audit.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
 
 
 def main() -> None:
-    key = load_keyrate()
-    usd = load_usdrub()
-    brent = load_brent()
-
+    key, usd, brent = load_keyrate(), load_usdrub(), load_brent()
     panel = build_monthly_panel(key, usd, brent)
     daily = build_daily_returns(usd, key)
-
     print_audit_facts(key, usd, brent, panel)
-
-    t2 = stationarity_tests(panel)
-    t2.to_csv(cfg.OUTPUT_TABLES / "T2_stationarity.csv", index=False)
-    print("\n=== T2: тесты на стационарность (c и ct) ===")
-    print(t2.round(3).to_string(index=False))
-    print("\n=== Явное решение по каждому ряду ===")
-    for line in stationarity_decisions(t2):
-        print(line)
-
+    source_audit(panel, daily)
+    table = stationarity_tests(panel)
+    table.to_csv(cfg.OUTPUT_TABLES / "T2_stationarity.csv", index=False)
+    decisions = "\n".join(stationarity_decisions(table))
+    (cfg.OUTPUT_TABLES / "T2_stationarity_interpretation.txt").write_text(decisions + "\n", encoding="utf-8")
+    print(table.round(4).to_string(index=False))
+    print(decisions)
     johansen_decision(panel)
-
     panel.to_parquet(cfg.MONTHLY_PANEL_FILE, index=False)
     daily.to_parquet(cfg.DAILY_RETURNS_FILE, index=False)
-    print(f"\nСохранено: {cfg.MONTHLY_PANEL_FILE.relative_to(cfg.ROOT)} ({len(panel)} строк)")
-    print(f"Сохранено: {cfg.DAILY_RETURNS_FILE.relative_to(cfg.ROOT)} ({len(daily)} строк)")
 
 
 if __name__ == "__main__":

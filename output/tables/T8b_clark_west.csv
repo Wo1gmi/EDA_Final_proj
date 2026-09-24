@@ -1,0 +1,3 @@
+restricted_model,unrestricted_model,h,n,hac_lags,mean_raw_loss_difference,mean_adjusted_loss_difference,hac_standard_error,z_stat,p_one_sided,conclusion,method
+naive,var3_with_rate,1,118,4,6.909568795443345e-05,0.001425217429962996,0.0008304503631574137,1.716198213875479,0.0430628850092289,приближённый тест поддерживает добавочную прогнозную информацию,"Clark-West для вложенных моделей, HAC Bartlett; асимптотическая аппроксимация"
+var2_no_rate,var3_with_rate,1,118,4,0.0018909939909281341,0.003072776899862047,0.0026823834551156964,1.1455397601718034,0.12599281744498025,добавочная прогнозная информация не подтверждена на 5%,"Clark-West для вложенных моделей, HAC Bartlett; асимптотическая аппроксимация"

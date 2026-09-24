@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 slides/node_modules/
-slides/*.pdf
+.cache/
+slides/.slides-build/
 slides/slide-*.jpg
 feedback_*.md

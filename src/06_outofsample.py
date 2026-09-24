@@ -1,31 +1,13 @@
-"""Проверка вне выборки: улучшает ли ставка прогноз курса, а не только
-объясняет его задним числом (Грейнджер — про предсказуемость в выборке,
-это разные вещи).
-
-Скользящее происхождение (expanding window, мин. 36 месяцев обучения),
-горизонты 1-3 месяца, три модели: наивный прогноз (0 — без изменений),
-VAR(курс, нефть) без ставки, VAR(курс, нефть, ставка) — основная
-спецификация. Сравнение отдельно для кризисных лет (2014/2015/2022) целью
-прогноза и для остальных — оба режима репортятся честно, включая случаи,
-где VAR со ставкой обыгрывает наивный прогноз (горизонт 1, кризисные годы).
-
-Для горизонта 1 (нет перекрытия прогнозов, что важно для DM-теста без
-HAC-поправки) считаем упрощённый тест Диболда-Мариано на разницу
-квадратичных потерь. Для пары "VAR со ставкой vs VAR без ставки" модели
-вложенные — классический DM в этом случае смещён (завышает мощность из-за
-шума оценивания лишних параметров); корректно было бы использовать тест
-Кларка-Уэста, которого мы не реализовывали — это явное ограничение, не
-скрытое замалчиванием.
-
-Авторы: команда (ФИО — см. README).
-"""
+"""Прогноз с расширяющимся обучением и приближённый тест Clark-West."""
 
 import sys
+import json
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from scipy import stats
+from statsmodels.regression.linear_model import OLS
 from statsmodels.tsa.vector_ar.var_model import VAR
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -33,143 +15,124 @@ from src import config as cfg
 
 MIN_TRAIN = 36
 MAX_H = 3
-LAG = 2
+LAG = cfg.VAR_LAG
 CRISIS_YEARS = {2014, 2015, 2022}
 
 
 def load_diffed() -> tuple[pd.DataFrame, pd.Series]:
     panel = pd.read_parquet(cfg.MONTHLY_PANEL_FILE)
     data = panel[["key_rate", "usdrub", "brent"]].copy()
-    data["usdrub"] = np.log(data["usdrub"])
-    data["brent"] = np.log(data["brent"])
+    data[["usdrub", "brent"]] = np.log(data[["usdrub", "brent"]])
     diffed = data.diff().dropna().reset_index(drop=True)
-    diff_dates = panel["date"].iloc[1:].reset_index(drop=True)
-    return diffed, diff_dates
+    return diffed, panel["date"].iloc[1:].reset_index(drop=True)
 
 
 def rolling_forecast(diffed: pd.DataFrame, diff_dates: pd.Series) -> pd.DataFrame:
-    n = len(diffed)
     rows = []
-    for origin in range(MIN_TRAIN, n - MAX_H):
+    for origin in range(MIN_TRAIN, len(diffed)):
         train3 = diffed.iloc[:origin][["key_rate", "usdrub", "brent"]].values
         train2 = diffed.iloc[:origin][["usdrub", "brent"]].values
-        try:
-            fc3 = VAR(train3).fit(LAG).forecast(train3[-LAG:], steps=MAX_H)
-        except Exception:
-            fc3 = np.full((MAX_H, 3), np.nan)
-        try:
-            fc2 = VAR(train2).fit(LAG).forecast(train2[-LAG:], steps=MAX_H)
-        except Exception:
-            fc2 = np.full((MAX_H, 2), np.nan)
-
-        for h in range(1, MAX_H + 1):
-            target_idx = origin + h - 1
-            if target_idx >= n:
-                continue
-            rows.append(
-                {
-                    "origin": origin,
-                    "h": h,
-                    "target_date": diff_dates.iloc[target_idx],
-                    "target_year": diff_dates.iloc[target_idx].year,
-                    "actual_dlog_usdrub": diffed["usdrub"].iloc[target_idx],
-                    "naive": 0.0,
-                    "var2_no_rate": fc2[h - 1, 0],
-                    "var3_with_rate": fc3[h - 1, 1],
-                }
-            )
-    return pd.DataFrame(rows)
+        steps = min(MAX_H, len(diffed)-origin)
+        fc3 = VAR(train3).fit(LAG).forecast(train3[-LAG:], steps=steps)
+        fc2 = VAR(train2).fit(LAG).forecast(train2[-LAG:], steps=steps)
+        for horizon in range(1, steps+1):
+            target_idx = origin+horizon-1
+            rows.append({"origin": origin, "origin_date": diff_dates.iloc[origin-1],
+                         "train_end_date": diff_dates.iloc[origin-1], "n_train": origin,
+                         "h": horizon, "target_date": diff_dates.iloc[target_idx],
+                         "target_year": diff_dates.iloc[target_idx].year,
+                         "actual_dlog_usdrub": diffed["usdrub"].iloc[target_idx],
+                         "naive": 0.0, "var2_no_rate": fc2[horizon-1,0],
+                         "var3_with_rate": fc3[horizon-1,1]})
+    forecasts = pd.DataFrame(rows)
+    if not np.isfinite(forecasts[["actual_dlog_usdrub", "naive", "var2_no_rate", "var3_with_rate"]]).all().all():
+        raise ValueError("Часть прогнозов содержит пропуски или бесконечные значения.")
+    return forecasts
 
 
 def summarize(forecasts: pd.DataFrame) -> pd.DataFrame:
-    forecasts = forecasts.copy()
-    forecasts["is_crisis_target"] = forecasts["target_year"].isin(CRISIS_YEARS)
+    crisis = forecasts["target_year"].isin(CRISIS_YEARS)
+    observed_crisis = ", ".join(str(year) for year in sorted(set(forecasts.loc[crisis,"target_year"])))
     rows = []
-    for regime_label, regime_mask in [
-        ("все горизонты, вся выборка", forecasts.index == forecasts.index),
-        ("цель прогноза — кризисный год (2014/2015/2022)", forecasts["is_crisis_target"]),
-        ("цель прогноза — спокойный год", ~forecasts["is_crisis_target"]),
-    ]:
-        sub_regime = forecasts[regime_mask]
-        for h in range(1, MAX_H + 1):
-            sub = sub_regime[sub_regime["h"] == h]
-            if len(sub) == 0:
+    for label, mask in [("вся OOS-выборка", np.ones(len(forecasts), dtype=bool)),
+                        (f"кризисные цели, доступный год: {observed_crisis}", crisis),
+                        ("остальные годы OOS-выборки", ~crisis)]:
+        for horizon in range(1, MAX_H+1):
+            sub = forecasts[mask & forecasts["h"].eq(horizon)]
+            if sub.empty:
                 continue
-            row = {"regime": regime_label, "h": h, "n": len(sub)}
+            row = {"regime": label, "h": horizon, "n": len(sub),
+                   "target_min": sub["target_date"].min(), "target_max": sub["target_date"].max()}
             for model in ["naive", "var2_no_rate", "var3_with_rate"]:
-                err = sub["actual_dlog_usdrub"] - sub[model]
-                row[f"rmse_{model}"] = np.sqrt((err**2).mean())
-                row[f"mae_{model}"] = err.abs().mean()
+                error = sub["actual_dlog_usdrub"]-sub[model]
+                row[f"rmse_{model}"] = np.sqrt(np.mean(error**2))
+                row[f"mae_{model}"] = np.mean(np.abs(error))
             rows.append(row)
     return pd.DataFrame(rows)
 
 
-def diebold_mariano(forecasts: pd.DataFrame) -> pd.DataFrame:
-    """Упрощённый DM-тест на горизонте 1 (без перекрытия прогнозов):
-    H0 — модели дают одинаковую квадратичную ошибку в среднем."""
+def clark_west(forecasts: pd.DataFrame) -> pd.DataFrame:
+    f1 = forecasts[forecasts["h"].eq(1)].sort_values("target_date")
+    n = len(f1)
+    hac_lags = max(1, int(np.floor(4*(n/100)**(2/9))))
+    actual, unrestricted = f1["actual_dlog_usdrub"], f1["var3_with_rate"]
     rows = []
-    f1 = forecasts[forecasts["h"] == 1].copy()
-    f1["is_crisis_target"] = f1["target_year"].isin(CRISIS_YEARS)
-    for regime_label, mask in [
-        ("вся выборка", f1.index == f1.index),
-        ("кризисный год", f1["is_crisis_target"]),
-        ("спокойный год", ~f1["is_crisis_target"]),
-    ]:
-        sub = f1[mask]
-        e_naive = (sub["actual_dlog_usdrub"] - sub["naive"]) ** 2
-        e_var2 = (sub["actual_dlog_usdrub"] - sub["var2_no_rate"]) ** 2
-        e_var3 = (sub["actual_dlog_usdrub"] - sub["var3_with_rate"]) ** 2
-        for label, d in [
-            ("наивный vs VAR со ставкой", e_naive - e_var3),
-            ("VAR без ставки vs VAR со ставкой (вложенные — DM смещён)", e_var2 - e_var3),
-        ]:
-            if len(d) < 3 or d.std() == 0:
-                stat, p = np.nan, np.nan
-            else:
-                stat, p = stats.ttest_1samp(d, 0.0)
-            rows.append(
-                {
-                    "regime": regime_label,
-                    "comparison": label,
-                    "n": len(d),
-                    "mean_loss_diff": d.mean(),
-                    "t_stat": stat,
-                    "p_value": p,
-                    "conclusion": (
-                        "вторая модель значимо лучше" if (not np.isnan(p) and p < 0.05 and d.mean() > 0)
-                        else "первая модель значимо лучше" if (not np.isnan(p) and p < 0.05 and d.mean() < 0)
-                        else "разница не значима" if not np.isnan(p)
-                        else "недостаточно данных"
-                    ),
-                }
-            )
+    for restricted_name in ["naive", "var2_no_rate"]:
+        restricted = f1[restricted_name]
+        raw_difference = (actual-restricted)**2-(actual-unrestricted)**2
+        adjusted_difference = raw_difference+(restricted-unrestricted)**2
+        fit = OLS(adjusted_difference.to_numpy(), np.ones((n,1))).fit(
+            cov_type="HAC", cov_kwds={"maxlags": hac_lags, "use_correction": True})
+        z = float(fit.tvalues[0])
+        p_value = float(stats.norm.sf(z))
+        rows.append({"restricted_model": restricted_name, "unrestricted_model": "var3_with_rate",
+                     "h": 1, "n": n, "hac_lags": hac_lags,
+                     "mean_raw_loss_difference": raw_difference.mean(),
+                     "mean_adjusted_loss_difference": adjusted_difference.mean(),
+                     "hac_standard_error": fit.bse[0], "z_stat": z, "p_one_sided": p_value,
+                     "conclusion": "приближённый тест поддерживает добавочную прогнозную информацию"
+                         if p_value<.05 else "добавочная прогнозная информация не подтверждена на 5%",
+                     "method": "Clark-West для вложенных моделей, HAC Bartlett; асимптотическая аппроксимация"})
     return pd.DataFrame(rows)
 
 
-def main() -> None:
-    diffed, diff_dates = load_diffed()
-    forecasts = rolling_forecast(diffed, diff_dates)
-    forecasts.to_csv(cfg.OUTPUT_TABLES / "T8_outofsample_forecasts.csv", index=False)
+def write_slide_values() -> None:
+    files = {"granger": "T4_granger.csv", "irf": "T3c_irf_bootstrap.csv",
+             "garch_selection": "T5b_garch_spec_selection.csv", "garch": "T5_garch.csv",
+             "event": "T6b_event_study_stratified.csv", "event_before_after": "T6c_before_after.csv",
+             "forecast_summary": "T8_outofsample_summary.csv", "forecast_comparison": "T8b_clark_west.csv",
+             "robustness": "T7_robustness.csv", "irf_ordering": "T7b_irf_ordering.csv",
+             "effect_size": "T7d_effect_size.csv", "lag_selection": "T3_lag_selection.csv"}
+    values = {"source_audit": json.loads((cfg.OUTPUT_TABLES/"T0_data_audit.json").read_text()),
+              "baseline_var_lag": cfg.VAR_LAG, "authors": cfg.__author__.split("; ")}
+    for key, filename in files.items():
+        values[key] = json.loads(pd.read_csv(cfg.OUTPUT_TABLES/filename).to_json(orient="records"))
+    rolling = pd.read_csv(cfg.OUTPUT_TABLES/"T7c_rolling_granger.csv")
+    values["rolling_summary"] = {"n_windows": len(rolling)}
+    for key in ["rate_to_fx_p", "rate_to_fx_p_neutralized"]:
+        valid = rolling[key].dropna()
+        values["rolling_summary"][key] = {"n_valid": len(valid), "fraction_below_005": float((valid<.05).mean())}
+    (cfg.OUTPUT_TABLES/"slide_values.json").write_text(json.dumps(values,ensure_ascii=False,indent=2)+"\n", encoding="utf-8")
 
+
+def main() -> None:
+    diffed, dates = load_diffed()
+    forecasts = rolling_forecast(diffed, dates)
+    forecasts.to_csv(cfg.OUTPUT_TABLES / "T8_outofsample_forecasts.csv", index=False)
     summary = summarize(forecasts)
     summary.to_csv(cfg.OUTPUT_TABLES / "T8_outofsample_summary.csv", index=False)
-    print(f"=== T8: прогноз вне выборки, {len(forecasts)} прогнозов, min_train={MIN_TRAIN} мес. ===")
-    print(summary.round(4).to_string(index=False))
-
-    dm = diebold_mariano(forecasts)
-    dm.to_csv(cfg.OUTPUT_TABLES / "T8b_diebold_mariano.csv", index=False)
-    print("\n=== T8b: упрощённый тест Диболда-Мариано (горизонт 1) ===")
-    print(dm.round(4).to_string(index=False))
-
-    print(
-        "\nВывод (горизонт 1, честно по обоим режимам): в спокойные годы наивный "
-        "прогноз не хуже VAR-моделей; в кризисные годы VAR со ставкой даёт меньшую "
-        "RMSE/MAE, чем наивный прогноз и чем VAR без ставки, но при n=12 разница "
-        "по упрощённому DM-тесту не всегда значима — см. T8b. Значимость по "
-        "Грейнджеру внутри выборки не гарантирует пользы для прогноза в общем "
-        "случае, но в кризисные периоды намёк на пользу есть и его не стоит "
-        "замалчивать."
-    )
+    comparison = clark_west(forecasts)
+    comparison.to_csv(cfg.OUTPUT_TABLES / "T8b_clark_west.csv", index=False)
+    outdated = cfg.OUTPUT_TABLES / "T8b_diebold_mariano.csv"
+    if outdated.exists():
+        outdated.unlink()
+    write_slide_values()
+    print(f"Прогнозы: {len(forecasts)}; минимальное обучение {MIN_TRAIN} разностей; фиксированный VAR({LAG}).")
+    print(summary.to_string(index=False, float_format=lambda value: f"{value:.5f}"))
+    print(comparison.round(5).to_string(index=False))
+    print("Режимы сравниваются описательно по RMSE/MAE. Проверка Clark-West относится к полной OOS-выборке, "
+          "горизонту 1 и приближённой асимптотике. Данные взяты из текущего снимка; исторические версии и "
+          "календарь их доступности не восстановлены. Целевая переменная: месячное Δlog курса в месяце t+h.")
 
 
 if __name__ == "__main__":

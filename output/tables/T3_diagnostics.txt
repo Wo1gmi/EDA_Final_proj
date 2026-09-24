@@ -1,3 +1,3 @@
 is_stable=True
-whiteness_stat=53.359
-whiteness_pvalue=0.9992
+whiteness_stat=51.409
+whiteness_pvalue=0.9996

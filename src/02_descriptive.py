@@ -1,12 +1,4 @@
-"""Описание выборки (Т1) и график трёх рядов во времени с отметками дат
-решений по ставке (Р1).
-
-Т2 (тесты на стационарность) считается в `01_prepare.py`, а не здесь —
-он нужен уже на этапе выбора спецификации VAR/VECM, раньше, чем этот
-скрипт запускается по порядку.
-
-Авторы: команда (ФИО — см. README).
-"""
+"""Описание исходных рядов и график их динамики."""
 
 import sys
 from pathlib import Path
@@ -19,27 +11,10 @@ from src import config as cfg
 
 
 def load_raw():
-    # drop_duplicates + sort здесь ради того же, что в 01_prepare.py: T1 и Р1
-    # должны считать выборку так же, как аналитический пайплайн, а не по
-    # сырому файлу как есть — иначе расхождение всплывёт молча, если в
-    # источнике когда-нибудь появится дублирующая дата.
-    key = pd.read_csv(cfg.RAW_KEYRATE_FILE)
-    key["date"] = pd.to_datetime(key["date"], format="%d.%m.%Y")
-    key = key.drop_duplicates("date").sort_values("date").reset_index(drop=True)
-
-    usd = pd.read_csv(cfg.RAW_USDRUB_FILE)
-    usd["date"] = pd.to_datetime(usd["date"], format="%d.%m.%Y")
-    usd["usdrub"] = usd["value"] / usd["nominal"]
-    usd = usd.drop_duplicates("date").sort_values("date").reset_index(drop=True)
-
-    brent = pd.read_csv(cfg.RAW_BRENT_FILE)
-    brent.columns = ["date", "brent"]
-    brent["date"] = pd.to_datetime(brent["date"])
-    brent = brent[brent["brent"] != "."].copy()
-    brent["brent"] = brent["brent"].astype(float)
-    brent = brent[brent["date"] >= pd.to_datetime(cfg.SAMPLE_START, dayfirst=True)]
-    brent = brent.drop_duplicates("date").sort_values("date").reset_index(drop=True)
-    return key, usd, brent
+    import importlib
+    prepare = importlib.import_module("src.01_prepare")
+    key = prepare.load_keyrate().rename(columns={"key_rate": "rate"})
+    return key, prepare.load_usdrub(), prepare.load_brent()
 
 
 def build_t1(key: pd.DataFrame, usd: pd.DataFrame, brent: pd.DataFrame) -> pd.DataFrame:
@@ -77,7 +52,7 @@ def plot_r1(key: pd.DataFrame, usd: pd.DataFrame, brent: pd.DataFrame) -> None:
     axes[2].set_ylabel("Brent, $/баррель")
     axes[2].set_xlabel("Дата")
 
-    fig.suptitle("Ключевая ставка, курс USD/RUB и цена Brent, 2013–2026\n(серые линии — даты изменений ставки)")
+    fig.suptitle("Ключевая ставка, курс USD/RUB и цена Brent, 2013-2026\n(серые линии - даты вступления изменений ставки в силу)")
     fig.tight_layout()
     fig.savefig(cfg.OUTPUT_FIGURES / "R1_three_series.png", dpi=150)
     plt.close(fig)

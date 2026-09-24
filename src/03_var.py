@@ -1,13 +1,4 @@
-"""VAR в разностях (основная спецификация) + VECM (альтернатива),
-тест Грейнджера в обе стороны (с контролем на нефть и без), импульсные отклики.
-
-Основная спецификация выбрана в `01_prepare.py` (`var_spec_decision.txt`):
-данные не показывают устойчивой коинтеграции (ранг зависит от лага), поэтому
-базовая модель — VAR(2) на первых разностях `key_rate, log(usdrub), log(brent)`.
-VECM(k_ar_diff=1, rank=1) считается параллельно, а не как запасной план.
-
-Авторы: команда (ФИО — см. README).
-"""
+"""VAR(2), условная VECM, тесты Грейнджера и бутстрап IRF."""
 
 import sys
 from pathlib import Path
@@ -44,10 +35,13 @@ def read_spec_decision() -> dict:
 
 
 def lag_selection_table(levels: pd.DataFrame) -> pd.DataFrame:
-    order = VAR(levels.values).select_order(cfg.VAR_MAX_LAG)
     rows = []
-    for crit in ["aic", "bic", "hqic", "fpe"]:
-        rows.append({"criterion": crit, "selected_lag": order.selected_orders[crit]})
+    for scale, values in [("levels", levels.values), ("differences", levels.diff().dropna().values)]:
+        order = VAR(values).select_order(cfg.VAR_MAX_LAG)
+        for criterion in ["aic", "bic", "hqic", "fpe"]:
+            rows.append({"scale": scale, "criterion": criterion,
+                         "selected_lag": order.selected_orders[criterion],
+                         "baseline_fixed_lag": cfg.VAR_LAG})
     return pd.DataFrame(rows)
 
 
@@ -78,12 +72,10 @@ def granger_row(results, cols: list, caused: str, causing: str, spec_label: str,
 def granger_row_vecm(vecm_results, caused: int, causing: int, caused_name: str, causing_name: str) -> dict:
     test = vecm_results.test_granger_causality(caused=caused, causing=causing)
     return {
-        # kd=1 — лаг, при котором коинтеграция (01_prepare.py) на границе
-        # критического значения, а при data-driven лаге (kd=2) не
-        # подтверждается вовсе. Помечаем явно как отвергнутую по данным
-        # альтернативу, а не равноправную спецификацию (колонка spec_note).
+
+
         "spec": "VECM (kd=1)",
-        "spec_note": "альтернатива, отвергнутая по данным — см. Т3 и var_spec_decision.txt",
+        "spec_note": "условная чувствительность при rank=1 и k_ar_diff=1; см. диагностику Йохансена",
         "control": "с нефтью (в системе)",
         "causing": causing_name,
         "caused": caused_name,
@@ -112,40 +104,26 @@ def build_t4(levels: pd.DataFrame, lag: int) -> pd.DataFrame:
 
 
 def _orth_irf_per_pp(sample: np.ndarray, lag: int, impulse_idx: int, response_idx: int, periods: int) -> np.ndarray:
-    """IRF ортогонализована по Холецкому, пересчитана на отклик к шоку 1 п.п.
-
-    orth_irfs по умолчанию даёт отклик на шок в 1 стандартное отклонение
-    структурной инновации. Для переменной, стоящей первой в порядке Холецкого
-    (у нас — key_rate), это отклонение равно sqrt(sigma_u[0,0]) и не смешано
-    с ковариацией остальных переменных, поэтому деление на него даёт именно
-    отклик на 1 процентный пункт ставки. Для impulse не первого в порядке
-    такое масштабирование было бы некорректно.
-    """
     r = VAR(sample).fit(lag)
     irf = r.irf(periods)
-    shock_sd = np.sqrt(r.sigma_u[impulse_idx, impulse_idx])
+    shock_sd = np.linalg.cholesky(r.sigma_u)[impulse_idx, impulse_idx]
     return irf.orth_irfs[:, response_idx, impulse_idx] / shock_sd
 
 
 def bootstrap_irf(
     results, cols: list, periods: int = 12, n_boot: int = 500, seed: int = 20260101
 ) -> pd.DataFrame:
-    """Остаточный (recursive-design) бутстрап доверительных интервалов IRF:
-    пересэмплируем остатки с возвращением, симулируем ряд по тем же
-    коэффициентам VAR, переоцениваем модель и IRF на каждой реплике —
-    вместо асимптотического интервала по умолчанию: при 156 наблюдениях и
-    выбросах 2014-15/2022 он, скорее всего, узкий."""
     impulse_idx = cols.index("key_rate")
     response_idx = cols.index("usdrub")
     if impulse_idx != 0:
         raise RuntimeError("Масштабирование IRF на 1 п.п. верно только для impulse, стоящего первым в порядке.")
 
     intercept = results.intercept
-    coefs = results.coefs  # (lag, k, k)
-    resid = results.resid  # (T-lag, k)
+    coefs = results.coefs
+    resid = results.resid - results.resid.mean(axis=0)
     lag = results.k_ar
     k = results.neqs
-    d = results.endog  # исходные (дифференцированные) данные, включая первые lag наблюдений
+    d = results.endog
     T = d.shape[0]
 
     point = _orth_irf_per_pp(d, lag, impulse_idx, response_idx, periods)
@@ -166,7 +144,16 @@ def bootstrap_irf(
         except Exception:
             continue
 
-    lo = np.nanpercentile(paths, 2.5, axis=0)
+    valid = np.isfinite(paths).all(axis=1)
+    n_ok = int(valid.sum())
+    if n_ok < n_boot * .95:
+        raise RuntimeError("Успешных бутстрап-реплик меньше 95%.")
+    paths = paths[valid]
+    cumulative_paths = np.cumsum(paths, axis=1)
+    np.savez_compressed(cfg.OUTPUT_TABLES / "T3c_irf_bootstrap_draws.npz",
+                        paths=paths, seed=seed, n_requested=n_boot,
+                        n_accepted=n_ok, n_rejected=n_boot-n_ok)
+    lo = np.percentile(paths, 2.5, axis=0)
     hi = np.nanpercentile(paths, 97.5, axis=0)
     n_ok = int(np.isfinite(paths[:, 0]).sum())
     print(f"Бутстрап IRF: {n_ok}/{n_boot} реплик успешно (шок = 1 п.п., ставка первая в порядке Холецкого)")
@@ -178,31 +165,33 @@ def bootstrap_irf(
             "ci_lo": lo,
             "ci_hi": hi,
             "cum_response_per_pp": np.cumsum(point),
-            "cum_ci_lo": np.cumsum(lo),
-            "cum_ci_hi": np.cumsum(hi),
+            "cum_ci_lo": np.percentile(cumulative_paths, 2.5, axis=0),
+            "cum_ci_hi": np.percentile(cumulative_paths, 97.5, axis=0),
         }
     )
 
 
 def plot_irf(irf_table: pd.DataFrame) -> None:
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7.5, 7), sharex=True)
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8.4, 7), sharex=True)
+    for axis in (ax1, ax2):
+        axis.tick_params(labelsize=12)
 
     ax1.plot(irf_table["horizon"], irf_table["response_per_pp"], color="steelblue", lw=2)
     ax1.fill_between(irf_table["horizon"], irf_table["ci_lo"], irf_table["ci_hi"], color="steelblue", alpha=0.2)
     ax1.axhline(0, color="black", lw=0.7)
-    ax1.set_ylabel("Отклик log-курса за месяц")
+    ax1.set_ylabel("Отклик Δlog(USD/RUB)", fontsize=13)
     ax1.set_title(
-        "Отклик курса USD/RUB на шок ставки в 1 п.п.\n"
-        "VAR(2) в разностях, 95% бутстрап-CI (500 реплик, ставка первая в порядке Холецкого)",
-        fontsize=10,
+        "Шок ставки +1 п.п.: отклик Δlog(USD/RUB)\n"
+        "VAR(2), 95% ДИ, 500 остаточных бутстрап-реплик",
+        fontsize=13,
     )
 
     ax2.plot(irf_table["horizon"], irf_table["cum_response_per_pp"], color="darkorange", lw=2)
     ax2.fill_between(irf_table["horizon"], irf_table["cum_ci_lo"], irf_table["cum_ci_hi"], color="darkorange", alpha=0.2)
     ax2.axhline(0, color="black", lw=0.7)
-    ax2.set_ylabel("Накопленный отклик log-курса")
-    ax2.set_xlabel("Месяцы после шока")
-    ax2.set_title("Накопленный эффект (сумма отклика по горизонтам)", fontsize=11)
+    ax2.set_ylabel("Накопленный отклик log-курса", fontsize=13)
+    ax2.set_xlabel("Месяцы после шока", fontsize=13)
+    ax2.set_title("Накопленный отклик и его 95% ДИ", fontsize=13)
 
     fig.tight_layout()
     fig.savefig(cfg.OUTPUT_FIGURES / "R2_irf_rate_to_fx.png", dpi=150)
@@ -213,7 +202,7 @@ def main() -> None:
     levels = load_levels()
     decision = read_spec_decision()
     lag = decision["kd"]
-    print(f"Основная спецификация: {decision['spec']}, лаг (k_ar_diff)={lag}")
+    print(f"Основная спецификация: {decision['spec']}, порядок VAR p={lag}")
 
     t3_lag = lag_selection_table(levels)
     t3_lag.to_csv(cfg.OUTPUT_TABLES / "T3_lag_selection.csv", index=False)

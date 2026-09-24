@@ -1,0 +1,63 @@
+{
+  "authors": [
+    "Анастасия Казакова",
+    "Степан Селезнев",
+    "Светлана Калошкина"
+  ],
+  "source_start": "01.01.2013",
+  "source_cutoff": "23.09.2026",
+  "monthly_start": "2013-10-31",
+  "monthly_end": "2026-08-31",
+  "monthly_n": 155,
+  "daily_start": "2013-09-17",
+  "daily_end": "2026-09-23",
+  "daily_n": 3214,
+  "rate_change_proxy_n": 65,
+  "partial_months_excluded": [
+    "2013-09",
+    "2026-09"
+  ],
+  "monthly_rule": "ставка последняя в месяце; USD/RUB и Brent среднее доступных наблюдений",
+  "daily_rule": "логарифмическая разность последовательных опубликованных значений официального курса",
+  "event_date_rule": "дата вступления изменения ставки в силу плюс 1 календарный день",
+  "event_announcement_dates_verified": false,
+  "fx_measurement_break": "2024-06-13",
+  "sources": [
+    {
+      "series": "key_rate",
+      "raw_rows": 3264,
+      "sha256": "e1e56132781b1477437a7857e56f772e56b77b056e78f92be71b8e4a72f1076f",
+      "raw_min_date": "2013-09-17",
+      "raw_max_date": "2026-09-23",
+      "duplicate_dates": 0,
+      "conflicting_duplicate_dates": 0,
+      "missing_numeric_rows": 0,
+      "rows_outside_source_window": 0,
+      "units": "проценты годовых"
+    },
+    {
+      "series": "usdrub",
+      "raw_rows": 3385,
+      "sha256": "0edc56f497a383258ecc14691028e6612d81ff9c35a83784c6749429541d0f40",
+      "raw_min_date": "2013-01-10",
+      "raw_max_date": "2026-09-23",
+      "duplicate_dates": 0,
+      "conflicting_duplicate_dates": 0,
+      "missing_numeric_rows": 0,
+      "rows_outside_source_window": 0,
+      "units": "рублей за 1 доллар США после деления на nominal"
+    },
+    {
+      "series": "brent",
+      "raw_rows": 10265,
+      "sha256": "fc3ab55170885e666085c1bdcb9ecf864826055d6370b305c6f8cb1b3e34edd0",
+      "raw_min_date": "1987-05-20",
+      "raw_max_date": "2026-09-22",
+      "duplicate_dates": 0,
+      "conflicting_duplicate_dates": 0,
+      "missing_numeric_rows": 1173,
+      "rows_outside_source_window": 6684,
+      "units": "долларов США за баррель"
+    }
+  ]
+}
