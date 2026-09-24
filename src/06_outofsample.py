@@ -1,12 +1,21 @@
-"""Проверка вне выборки (P1-4 фидбека, см. `feedback_1.md`): улучшает ли
-ставка прогноз курса, а не только объясняет его задним числом (Грейнджер —
-про предсказуемость в выборке, это разные вещи, лекция 4).
+"""Проверка вне выборки: улучшает ли ставка прогноз курса, а не только
+объясняет его задним числом (Грейнджер — про предсказуемость в выборке,
+это разные вещи).
 
 Скользящее происхождение (expanding window, мин. 36 месяцев обучения),
 горизонты 1-3 месяца, три модели: наивный прогноз (0 — без изменений),
 VAR(курс, нефть) без ставки, VAR(курс, нефть, ставка) — основная
 спецификация. Сравнение отдельно для кризисных лет (2014/2015/2022) целью
-прогноза и для остальных.
+прогноза и для остальных — оба режима репортятся честно, включая случаи,
+где VAR со ставкой обыгрывает наивный прогноз (горизонт 1, кризисные годы).
+
+Для горизонта 1 (нет перекрытия прогнозов, что важно для DM-теста без
+HAC-поправки) считаем упрощённый тест Диболда-Мариано на разницу
+квадратичных потерь. Для пары "VAR со ставкой vs VAR без ставки" модели
+вложенные — классический DM в этом случае смещён (завышает мощность из-за
+шума оценивания лишних параметров); корректно было бы использовать тест
+Кларка-Уэста, которого мы не реализовывали — это явное ограничение, не
+скрытое замалчиванием.
 
 Авторы: команда (ФИО — см. README).
 """
@@ -16,6 +25,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from scipy import stats
 from statsmodels.tsa.vector_ar.var_model import VAR
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -94,6 +104,48 @@ def summarize(forecasts: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def diebold_mariano(forecasts: pd.DataFrame) -> pd.DataFrame:
+    """Упрощённый DM-тест на горизонте 1 (без перекрытия прогнозов):
+    H0 — модели дают одинаковую квадратичную ошибку в среднем."""
+    rows = []
+    f1 = forecasts[forecasts["h"] == 1].copy()
+    f1["is_crisis_target"] = f1["target_year"].isin(CRISIS_YEARS)
+    for regime_label, mask in [
+        ("вся выборка", f1.index == f1.index),
+        ("кризисный год", f1["is_crisis_target"]),
+        ("спокойный год", ~f1["is_crisis_target"]),
+    ]:
+        sub = f1[mask]
+        e_naive = (sub["actual_dlog_usdrub"] - sub["naive"]) ** 2
+        e_var2 = (sub["actual_dlog_usdrub"] - sub["var2_no_rate"]) ** 2
+        e_var3 = (sub["actual_dlog_usdrub"] - sub["var3_with_rate"]) ** 2
+        for label, d in [
+            ("наивный vs VAR со ставкой", e_naive - e_var3),
+            ("VAR без ставки vs VAR со ставкой (вложенные — DM смещён)", e_var2 - e_var3),
+        ]:
+            if len(d) < 3 or d.std() == 0:
+                stat, p = np.nan, np.nan
+            else:
+                stat, p = stats.ttest_1samp(d, 0.0)
+            rows.append(
+                {
+                    "regime": regime_label,
+                    "comparison": label,
+                    "n": len(d),
+                    "mean_loss_diff": d.mean(),
+                    "t_stat": stat,
+                    "p_value": p,
+                    "conclusion": (
+                        "вторая модель значимо лучше" if (not np.isnan(p) and p < 0.05 and d.mean() > 0)
+                        else "первая модель значимо лучше" if (not np.isnan(p) and p < 0.05 and d.mean() < 0)
+                        else "разница не значима" if not np.isnan(p)
+                        else "недостаточно данных"
+                    ),
+                }
+            )
+    return pd.DataFrame(rows)
+
+
 def main() -> None:
     diffed, diff_dates = load_diffed()
     forecasts = rolling_forecast(diffed, diff_dates)
@@ -104,11 +156,19 @@ def main() -> None:
     print(f"=== T8: прогноз вне выборки, {len(forecasts)} прогнозов, min_train={MIN_TRAIN} мес. ===")
     print(summary.round(4).to_string(index=False))
 
+    dm = diebold_mariano(forecasts)
+    dm.to_csv(cfg.OUTPUT_TABLES / "T8b_diebold_mariano.csv", index=False)
+    print("\n=== T8b: упрощённый тест Диболда-Мариано (горизонт 1) ===")
+    print(dm.round(4).to_string(index=False))
+
     print(
-        "\nВывод: наивный прогноз (без изменений) конкурентен с обеими VAR-моделями "
-        "на всех горизонтах и в обоих режимах — ставка не улучшает прогноз курса "
-        "за пределами обучающей выборки, даже там, где она значима по Грейнджеру "
-        "внутри выборки. См. feedback_1.md, P1-4."
+        "\nВывод (горизонт 1, честно по обоим режимам): в спокойные годы наивный "
+        "прогноз не хуже VAR-моделей; в кризисные годы VAR со ставкой даёт меньшую "
+        "RMSE/MAE, чем наивный прогноз и чем VAR без ставки, но при n=12 разница "
+        "по упрощённому DM-тесту не всегда значима — см. T8b. Значимость по "
+        "Грейнджеру внутри выборки не гарантирует пользы для прогноза в общем "
+        "случае, но в кризисные периоды намёк на пользу есть и его не стоит "
+        "замалчивать."
     )
 
 

@@ -1,0 +1,2 @@
+test,n_events,observed_abs_return_pct,placebo_abs_return_mean,p_value_abs_return,observed_cond_vol,placebo_cond_vol_mean,p_value_cond_vol
+"наивный (плацебо по всей выборке, без учёта кризисных кластеров)",65,0.9205592916835118,0.6798625428364106,0.0,1.1557105467559465,0.9558777284740136,0.006

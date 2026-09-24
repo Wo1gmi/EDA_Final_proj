@@ -1,0 +1,5 @@
+criterion,selected_lag
+aic,3
+bic,3
+hqic,3
+fpe,3

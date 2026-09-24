@@ -1,0 +1,4 @@
+ordering,peak_horizon,peak_value_per_pp,sign,cum_effect_h3_per_pp,note
+"key_rate, usdrub, brent (основной)",1,0.023187377082412773,+,0.014157186177623574,
+"usdrub, key_rate, brent",1,0.019540469757720197,+,0.0018220653065749107,"нормировка на 1 п.п. верна только для ordering, где key_rate первая"
+"brent, key_rate, usdrub",1,0.023113449388123798,+,0.013999820220920138,"нормировка на 1 п.п. верна только для ordering, где key_rate первая"

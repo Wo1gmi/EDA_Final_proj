@@ -65,6 +65,7 @@ def granger_row(results, cols: list, caused: str, causing: str, spec_label: str,
     test = results.test_causality(caused=caused_idx, causing=[causing_idx], kind="f")
     return {
         "spec": spec_label,
+        "spec_note": "основная спецификация" if "осн." in spec_label else "",
         "control": control_label,
         "causing": causing,
         "caused": caused,
@@ -77,11 +78,12 @@ def granger_row(results, cols: list, caused: str, causing: str, spec_label: str,
 def granger_row_vecm(vecm_results, caused: int, causing: int, caused_name: str, causing_name: str) -> dict:
     test = vecm_results.test_granger_causality(caused=caused, causing=causing)
     return {
-        # kd=1 — тот самый лаг, который сам план признал произвольным (см. 0.5):
-        # ранг коинтеграции при нём на границе критического значения, а при
-        # data-driven лаге (kd=2) не подтверждается вовсе. Помечаем явно как
-        # отвергнутую по данным альтернативу, а не равноправную спецификацию.
-        "spec": "VECM (kd=1 — альтернатива, отвергнутая по данным, см. 01_prepare.py)",
+        # kd=1 — лаг, при котором коинтеграция (01_prepare.py) на границе
+        # критического значения, а при data-driven лаге (kd=2) не
+        # подтверждается вовсе. Помечаем явно как отвергнутую по данным
+        # альтернативу, а не равноправную спецификацию (колонка spec_note).
+        "spec": "VECM (kd=1)",
+        "spec_note": "альтернатива, отвергнутая по данным — см. Т3 и var_spec_decision.txt",
         "control": "с нефтью (в системе)",
         "causing": causing_name,
         "caused": caused_name,
@@ -131,8 +133,8 @@ def bootstrap_irf(
     """Остаточный (recursive-design) бутстрап доверительных интервалов IRF:
     пересэмплируем остатки с возвращением, симулируем ряд по тем же
     коэффициентам VAR, переоцениваем модель и IRF на каждой реплике —
-    вместо асимптотического интервала по умолчанию (см. фидбек P0-3.5:
-    при 156 наблюдениях и выбросах 2014-15/2022 он, скорее всего, узкий)."""
+    вместо асимптотического интервала по умолчанию: при 156 наблюдениях и
+    выбросах 2014-15/2022 он, скорее всего, узкий."""
     impulse_idx = cols.index("key_rate")
     response_idx = cols.index("usdrub")
     if impulse_idx != 0:
