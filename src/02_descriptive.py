@@ -20,17 +20,26 @@ from src import config as cfg
 
 
 def load_raw():
+    # drop_duplicates + sort здесь ради того же, что в 01_prepare.py: T1 и Р1
+    # должны считать выборку так же, как аналитический пайплайн, а не по
+    # сырому файлу как есть — иначе расхождение всплывёт молча, если в
+    # источнике когда-нибудь появится дублирующая дата.
     key = pd.read_csv(cfg.RAW_KEYRATE_FILE)
     key["date"] = pd.to_datetime(key["date"], format="%d.%m.%Y")
+    key = key.drop_duplicates("date").sort_values("date").reset_index(drop=True)
+
     usd = pd.read_csv(cfg.RAW_USDRUB_FILE)
     usd["date"] = pd.to_datetime(usd["date"], format="%d.%m.%Y")
     usd["usdrub"] = usd["value"] / usd["nominal"]
+    usd = usd.drop_duplicates("date").sort_values("date").reset_index(drop=True)
+
     brent = pd.read_csv(cfg.RAW_BRENT_FILE)
     brent.columns = ["date", "brent"]
     brent["date"] = pd.to_datetime(brent["date"])
     brent = brent[brent["brent"] != "."].copy()
     brent["brent"] = brent["brent"].astype(float)
     brent = brent[brent["date"] >= pd.to_datetime(cfg.SAMPLE_START, dayfirst=True)]
+    brent = brent.drop_duplicates("date").sort_values("date").reset_index(drop=True)
     return key, usd, brent
 
 
